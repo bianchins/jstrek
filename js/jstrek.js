@@ -5,6 +5,7 @@ var jstrek = {};
 var warp_animation = null;
 var initial_turn = true;
 var energy_meter_gauge = null;
+var shields_meter_gauge = null;
 
 
 function set_system_status(element_selector, value) {
@@ -18,6 +19,14 @@ function Quadrant(y,x,enemies, planets, stars, starbases) {
   this.planets = planets;
   this.stars = stars;
   this.starbases = starbases;
+  this.sectors = new Array(8);
+  //Populate the quadrant with all empty sectors 
+  for(y=1; y<=8; y++) {
+    this.sectors[y-1] = new Array(8);
+    for(x=1; x<=8; x++) {
+      this.sectors[y-1][x-1] = new Sector(y,x,null);
+    }
+  }
 }
 
 function set_global_status_green()  {
@@ -36,6 +45,8 @@ function Sector(y,x,content) {
 
 function init() {
 
+  $('#main-container').removeClass('hide');
+
   jstrek = {
     enemies: 0,
     galaxy: new Array(8),
@@ -51,21 +62,19 @@ function init() {
     lrs_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
+    actual_sector: new Sector(0,0,null),
     shields_up: false
   }
 
   set_global_status_green();
 
-  //Create Empty Galaxy
-  for(i=1; i<=8; i++) {
-    jstrek.galaxy[i-1] = new Array(8);
-  }
   //Popolate Galaxy
   for(y=1; y<=8; y++) {
+    jstrek.galaxy[y-1] = new Array(8);
     for(x=1; x<=8; x++) {
       var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
       enemies = enemies < 0 ? 0 : enemies;
-      jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(0, 1), getRandomInt(0, 5), getRandomInt(0, 1));
+      jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(1, 2)-1, getRandomInt(0, 5), getRandomInt(1, 2)-1);
       jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies;
     }
   }
@@ -98,7 +107,7 @@ function init() {
     valueFontColor: '#fff',
     levelColors: ['#FE1600','#F9BC00','#00BC8C']
     }); 
-   var g2 = new JustGage({
+   shields_meter_gauge = new JustGage({
     id: "shields-meter",
     value: 100,
     min: 0,
@@ -112,11 +121,11 @@ function init() {
   $('#short-range-chart tbody').html('');
 
   for(i=1; i<=8; i++) {
-        $('#known-galaxy-chart tbody').append('<tr><td>'+i+'</td><td id="g'+i+'-1">...</td><td id="g'+i+'-2">...</td><td id="g'+i+'-3">...</td><td id="g'+i+'-4">...</td><td id="g'+i+'-5">...</td><td id="g'+i+'-6">...</td><td id="g'+i+'-7">...</td><td id="g'+i+'-7">...</td></tr>');
+        $('#known-galaxy-chart tbody').append('<tr><td>'+i+'</td><td id="g'+i+'-1">...</td><td id="g'+i+'-2">...</td><td id="g'+i+'-3">...</td><td id="g'+i+'-4">...</td><td id="g'+i+'-5">...</td><td id="g'+i+'-6">...</td><td id="g'+i+'-7">...</td><td id="g'+i+'-8">...</td></tr>');
       } 
 
   for(i=1; i<=8; i++) {
-        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr1-'+i+'">.</td><td id="sr2-'+i+'">.</td><td id="sr3-'+i+'">.</td><td id="sr4-'+i+'">.</td><td id="sr5-'+i+'">.</td><td id="sr6-'+i+'">.</td><td id="sr7-'+i+'">.</td><td id="sr8-'+i+'">.</td></tr>');
+        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1">.</td><td id="sr'+i+'-2">.</td><td id="sr'+i+'-3">.</td><td id="sr'+i+'-4">.</td><td id="sr'+i+'-5">.</td><td id="sr'+i+'-6">.</td><td id="sr'+i+'-7">.</td><td id="sr'+i+'-8">.</td></tr>');
       }  
 
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
@@ -125,35 +134,67 @@ function init() {
 
 }
 
+function set_warp_speed(speed) {
+  var max_warp_speed = (1+0.09*jstrek.warp_status);
+  if(speed > 1 && speed <= max_warp_speed) {
+    jstrek.warp = speed;
+    $('#warp-speed').text(jstrek.warp.toFixed(1));
+  } else {
+    bootbox.alert("Enter Warp Speed between 1.0 and " + max_warp_speed);
+  }
+}
+
 function command_handler() {
   $( "#command" ).keypress(function( event ) {
     if ( event.which == 13 ) {
       event.preventDefault();
       var command = $( "#command" ).val();
       switch(command) {
-        case 'help' : alert('help'); break;
-        case 'move' : 
+        case 'help':
+        case 'h':
+        case 'H':
+        case 'HELP': alert('help'); break;
+        case 'move':
+        case 'm':
+        case 'M':
+        case 'MOVE': 
                       bootbox.prompt("Enter Quadrant, Sector", function(result) {
                         if (result === null) {
                         
                         } else {
                           var coord_array = result.split(',');
+                          if(coord_array.length==2) {
+                            move_in_sector(coord_array[0],coord_array[1]);
+                          }
                           if(coord_array.length==4) {
                             command_move(coord_array[0],coord_array[1],coord_array[2],coord_array[3]); 
                           }
                         }
+                        $( "#command" ).val('');
                       });
                       break;
-        case 'warp' : 
+        case 'warp':
+        case 'w':
+        case 'W':
+        case 'WARP': 
                       bootbox.prompt("Enter Warp Speed", function(result) {
                         if (result === null) {
                         
                         } else {
-                          jstrek.warp = parseFloat(result);
-                          $('#warp-speed').text(jstrek.warp.toFixed(1));
+                          try {
+                            set_warp_speed(parseFloat(result));
+                          } catch(err) {
+                            //Warp not correct
+                          }
+                          
                         }
+                        $( "#command" ).val('');
                       });
-                      break;              
+                      break;    
+        case 'ack':
+        case 'a':
+        case 'A':
+        case 'ACK': clear_communications(); break;                        
         default: alert('Command not recognized');
       }
       //Empty command field
@@ -177,6 +218,11 @@ function show_planet(texture) {
       });
 }
 
+function add_stardate(stardays) {
+  jstrek.stardate+=stardays;
+  $('#stardate').text(jstrek.stardate.toFixed(1));
+}
+
 function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     try {
       window.clearTimeout();
@@ -187,8 +233,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     
     if(!initial_turn) {
       //Change stardate
-      jstrek.stardate+=lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
-      $('#stardate').text(jstrek.stardate.toFixed(1));
+      add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
 
       //Calculate energy waste
       var energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
@@ -197,9 +242,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
 
       energy_meter_gauge.refresh(jstrek.energy);
 
-    } else {
-      initial_turn = false;
-    }
+    } 
     
     //Move in quadrant
     jstrek.actual_quadrant = jstrek.galaxy[quadrant_y-1][quadrant_x-1];
@@ -223,7 +266,91 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     if(jstrek.lrs_status > 50) {
       //LRS works if it is > 50%
     }
-    //Move in sector TODO
+
+    //Populating sector
+    //Stars
+    for(i=0; i<jstrek.actual_quadrant.stars; i++) {
+      var positioned = false;
+      while(!positioned) {
+        var x = getRandomInt(1,8);
+        var y = getRandomInt(1,8);
+        if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = '*';
+          $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
+          positioned = true;
+        }
+      }
+    }
+
+    //Planets
+    for(i=0; i<jstrek.actual_quadrant.planets; i++) {
+      var positioned = false;
+      while(!positioned) {
+        var x = getRandomInt(1,8);
+        var y = getRandomInt(1,8);
+        if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = 'p';
+          $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
+          positioned = true;
+        }
+      }
+    }
+
+    //Starbases
+    for(i=0; i<jstrek.actual_quadrant.starbases; i++) {
+      var positioned = false;
+      while(!positioned) {
+        var x = getRandomInt(1,8);
+        var y = getRandomInt(1,8);
+        if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = 'b';
+          $('#sr'+y+'-'+x).html('<span class="text-success">SB</span>');
+          positioned = true;
+        }
+      }
+    }
+
+    //Move in sector
+    move_in_sector(sector_y, sector_x);
+}
+
+function clear_communications() {
+  $('#communications').html('');
+}
+
+function log_communication(message, type) {
+  switch(type) {
+    case 'alert': $('#communications').prepend('<div class="alert alert-danger" role="alert">'+message+'</div>'); break;
+    case 'info': $('#communications').prepend('<div class="alert alert-info" role="alert">'+message+'</div>'); break;
+    case 'warning': $('#communications').prepend('<div class="alert alert-warning" role="alert">'+message+'</div>'); break;
+    case 'success': $('#communications').prepend('<div class="alert alert-success" role="alert">'+message+'</div>'); break;
+  }
+}
+
+function move_in_sector(sector_y, sector_x) {
+  if(jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1].content!=null) {
+    //Sector busy
+    log_communication('Moving in '+sector_y+','+sector_x+': the sector is busy!','info');
+  } else {
+    //Sector free, moving
+    $('.sector_y').text(sector_y);
+    $('.sector_x').text(sector_x);
+    if(!initial_turn) {
+      add_stardate(lineDistance(jstrek.actual_sector, jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1])/10);
+    }
+
+    jstrek.actual_sector.content = null;
+    $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('.');
+    jstrek.actual_sector = jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1];
+    jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1].content = 's';
+    var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
+    $('#sr'+sector_y+'-'+sector_x).html('<img src="images/'+ship_image+'"/>');
+    if(initial_turn) {
+      log_communication('Welcome aboard!','success');
+    }
+
+  }
+  initial_turn = false;
 }
 
 function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
@@ -236,8 +363,11 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
 
     return;
 
+  } else {
+    //Already in Quadrant, move in sector
+    move_in_sector(sector_y, sector_x);
   }
-  //Move in sector TODO
+  
 }
 
 function computer_turn() {
