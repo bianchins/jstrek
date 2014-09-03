@@ -3,6 +3,7 @@
 var _texture_folder = 'images/texture/';
 var jstrek = {};
 var warp_animation = null;
+var initial_turn = true;
 
 
 function set_system_status(element_selector, value) {
@@ -117,6 +118,8 @@ function init() {
         $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr1-'+i+'">.</td><td id="sr2-'+i+'">.</td><td id="sr3-'+i+'">.</td><td id="sr4-'+i+'">.</td><td id="sr5-'+i+'">.</td><td id="sr6-'+i+'">.</td><td id="sr7-'+i+'">.</td><td id="sr8-'+i+'">.</td></tr>');
       }  
 
+  move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
+
   $( "#command" ).focus();
 
 }
@@ -152,16 +155,23 @@ function show_planet(texture) {
       });
 }
 
-function move_in_quadrant(quadrant_y, quadrant_x) {
-
-    window.clearTimeout();
-    window.cancelRequestAnimFrame(warp_animation);
-    document.getElementById("canvas").width = document.getElementById("canvas").width;
-    hide_planet();
-
-    //Change stardate
-    jstrek.stardate+=lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
-    $('#stardate').text(jstrek.stardate.toFixed(1));
+function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
+    try {
+      window.clearTimeout();
+      window.cancelRequestAnimFrame(warp_animation);
+      document.getElementById("canvas").width = document.getElementById("canvas").width;
+      hide_planet();
+    } catch(err) {}
+    
+    if(!initial_turn) {
+      //Change stardate
+      jstrek.stardate+=lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
+      $('#stardate').text(jstrek.stardate.toFixed(1));
+      
+    } else {
+      initial_turn = false;
+    }
+    
     //Move in quadrant
     jstrek.actual_quadrant = jstrek.galaxy[quadrant_y-1][quadrant_x-1];
 
