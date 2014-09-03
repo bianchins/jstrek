@@ -4,6 +4,7 @@ var _texture_folder = 'images/texture/';
 var jstrek = {};
 var warp_animation = null;
 var initial_turn = true;
+var energy_meter_gauge = null;
 
 
 function set_system_status(element_selector, value) {
@@ -88,7 +89,7 @@ function init() {
   set_system_status('#laser-eff', 100);
   set_system_status('#laser-temp', 0);
 
-   var g1= new JustGage({
+   energy_meter_gauge= new JustGage({
     id: "energy-meter",
     value: 100,
     min: 0,
@@ -131,7 +132,28 @@ function command_handler() {
       var command = $( "#command" ).val();
       switch(command) {
         case 'help' : alert('help'); break;
-        case 'move' : command_move(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8)); break;
+        case 'move' : 
+                      bootbox.prompt("Enter Quadrant, Sector", function(result) {
+                        if (result === null) {
+                        
+                        } else {
+                          var coord_array = result.split(',');
+                          if(coord_array.length==4) {
+                            command_move(coord_array[0],coord_array[1],coord_array[2],coord_array[3]); 
+                          }
+                        }
+                      });
+                      break;
+        case 'warp' : 
+                      bootbox.prompt("Enter Warp Speed", function(result) {
+                        if (result === null) {
+                        
+                        } else {
+                          jstrek.warp = parseFloat(result);
+                          $('#warp-speed').text(jstrek.warp.toFixed(1));
+                        }
+                      });
+                      break;              
         default: alert('Command not recognized');
       }
       //Empty command field
@@ -167,7 +189,14 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       //Change stardate
       jstrek.stardate+=lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
       $('#stardate').text(jstrek.stardate.toFixed(1));
+
+      //Calculate energy waste
+      var energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
       
+      jstrek.energy-=energy_wasted;
+
+      energy_meter_gauge.refresh(jstrek.energy);
+
     } else {
       initial_turn = false;
     }
@@ -179,10 +208,10 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
     //Check presence of enemies in actual quadrant
     if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies>0) {
-      $('#g'+quadrant_y+'-'+quadrant_x).addClass('text-danger');
+      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
       set_global_status_alert();
     } else {
-      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger');
+      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger').addClass('text-success');
       set_global_status_green();
     }
 
