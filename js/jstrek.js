@@ -12,35 +12,12 @@ function set_system_status(element_selector, value) {
   $(element_selector).css('width', value+'%').attr('aria-valuenow', value); 
 }
 
-function Quadrant(y,x,enemies, planets, stars, starbases) {
-  this.y = y;
-  this.x = x;
-  this.enemies = enemies;
-  this.planets = planets;
-  this.stars = stars;
-  this.starbases = starbases;
-  this.sectors = new Array(8);
-  //Populate the quadrant with all empty sectors 
-  for(y=1; y<=8; y++) {
-    this.sectors[y-1] = new Array(8);
-    for(x=1; x<=8; x++) {
-      this.sectors[y-1][x-1] = new Sector(y,x,null);
-    }
-  }
-}
-
 function set_global_status_green()  {
   $('#status').removeClass('label-danger').addClass('label-success').text('GREEN');
 }
 
 function set_global_status_alert()  {
   $('#status').removeClass('label-success').addClass('label-danger').text('ALERT');
-}
-
-function Sector(y,x,content) {
-  this.y = y;
-  this.x = x;
-  this.content = content;
 }
 
 function init() {
@@ -74,7 +51,7 @@ function init() {
     for(x=1; x<=8; x++) {
       var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
       enemies = enemies < 0 ? 0 : enemies;
-      jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(1, 2)-1, getRandomInt(0, 5), getRandomInt(1, 2)-1);
+      jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(0, 2), getRandomInt(0, 7), getRandomInt(0, 2));
       jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies;
     }
   }
@@ -154,6 +131,17 @@ function command_handler() {
         case 'h':
         case 'H':
         case 'HELP': alert('help'); break;
+        case 'orbit':
+        case 'o':
+        case 'O':
+        case 'ORBIT':
+                    //Search for planets near 
+                    result = search_planet_near();
+                    if(result!=null) {
+                      //Get info about planet
+                      log_communication(result.name, 'info');
+                    }
+                    break;
         case 'move':
         case 'm':
         case 'M':
@@ -167,7 +155,7 @@ function command_handler() {
                             move_in_sector(coord_array[0],coord_array[1]);
                           }
                           if(coord_array.length==4) {
-                            command_move(coord_array[0],coord_array[1],coord_array[2],coord_array[3]); 
+                            command_move(parseInt(coord_array[0]),parseInt(coord_array[1]),parseInt(coord_array[2]),parseInt(coord_array[3])); 
                           }
                         }
                         $( "#command" ).val('');
@@ -223,6 +211,22 @@ function add_stardate(stardays) {
   $('#stardate').text(jstrek.stardate.toFixed(1));
 }
 
+function search_planet_near() {
+  var planet_found = null;
+  var y = jstrek.actual_sector.y - 1;
+  var x = jstrek.actual_sector.x - 1;
+  if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x-1].content;
+  if(jstrek.actual_quadrant.sectors[y-1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x].content;
+  if(jstrek.actual_quadrant.sectors[y-1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x+1].content;
+  if(jstrek.actual_quadrant.sectors[y][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x-1].content;
+  if(jstrek.actual_quadrant.sectors[y][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x+1].content;
+  if(jstrek.actual_quadrant.sectors[y+1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x-1].content;
+  if(jstrek.actual_quadrant.sectors[y+1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x].content;
+  if(jstrek.actual_quadrant.sectors[y+1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x+1].content;
+
+  return null;
+}
+
 function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     try {
       window.clearTimeout();
@@ -242,21 +246,19 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
 
       energy_meter_gauge.refresh(jstrek.energy);
 
+      $('#short-range-chart tbody').html('');
+
+      for(i=1; i<=8; i++) {
+        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1">.</td><td id="sr'+i+'-2">.</td><td id="sr'+i+'-3">.</td><td id="sr'+i+'-4">.</td><td id="sr'+i+'-5">.</td><td id="sr'+i+'-6">.</td><td id="sr'+i+'-7">.</td><td id="sr'+i+'-8">.</td></tr>');
+      } 
+
     } 
     
     //Move in quadrant
     jstrek.actual_quadrant = jstrek.galaxy[quadrant_y-1][quadrant_x-1];
 
     //Show quadrant in Galaxy Chart
-    $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
-    //Check presence of enemies in actual quadrant
-    if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies>0) {
-      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
-      set_global_status_alert();
-    } else {
-      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger').addClass('text-success');
-      set_global_status_green();
-    }
+    show_quadrant(quadrant_y, quadrant_x);
 
     //Show actual quadrant coordinates
     $('.quadrant_y').text(quadrant_y);
@@ -265,7 +267,17 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     //Long Range Scanner (TODO)
     if(jstrek.lrs_status > 50) {
       //LRS works if it is > 50%
+      show_quadrant(quadrant_y-1, quadrant_x-1);
+      show_quadrant(quadrant_y-1, quadrant_x);
+      show_quadrant(quadrant_y-1, quadrant_x+1);  
+      show_quadrant(quadrant_y+1, quadrant_x-1);
+      show_quadrant(quadrant_y+1, quadrant_x);
+      show_quadrant(quadrant_y+1, quadrant_x+1);
+      show_quadrant(quadrant_y, quadrant_x-1);
+      show_quadrant(quadrant_y, quadrant_x+1);     
     }
+
+    move_in_sector(sector_y, sector_x);
 
     //Populating sector
     //Stars
@@ -283,13 +295,13 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     }
 
     //Planets
-    for(i=0; i<jstrek.actual_quadrant.planets; i++) {
+    for(i=0; i<jstrek.actual_quadrant.planets.length; i++) {
       var positioned = false;
       while(!positioned) {
         var x = getRandomInt(1,8);
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
-          jstrek.actual_quadrant.sectors[y-1][x-1].content = 'p';
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.planets[i];
           $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
           positioned = true;
         }
@@ -309,9 +321,21 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         }
       }
     }
+}
 
-    //Move in sector
-    move_in_sector(sector_y, sector_x);
+function show_quadrant(quadrant_y, quadrant_x) {
+  //Check valid coordinates
+  if(quadrant_x<1 || quadrant_x>8 || quadrant_y<1 || quadrant_y>8) return;
+
+  $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
+    //Check presence of enemies in actual quadrant
+    if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies>0) {
+      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
+      set_global_status_alert();
+    } else {
+      $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger').addClass('text-success');
+      set_global_status_green();
+    }
 }
 
 function clear_communications() {

@@ -37,16 +37,23 @@
 
       <div class="row">
         <div class="col-lg-4">
+
+          <!-- Short Range Chart -->
           <div class="panel panel-default">
-            <div class="panel-heading"> Main Viewer
-            </div>
-            <div class="panel-body" style="text-align: center;">
-              <div style="position:relative; height: 300px; background: url('images/texture/StarsMap_2500x1250.jpg'); text-align:center;">
-                <canvas id="canvas" width="100%" height="300"></canvas>
-              </div>
+            <div class="panel-body">
               
+              <p class="text-center">U.S.S. Lexington <small>RCB-92</small></p>
+              <table class="table table-bordered table-condensed" style="text-align:center; font-family: courier" id="short-range-chart">
+                <thead><tr><td>&nbsp;</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td></tr></thead>
+                <tbody></tbody>
+              </table>
+
+              Quadrant: <span class="quadrant_y">7</span> , <span class="quadrant_x">7</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sector: <span class="sector_y">3</span> , <span class="sector_x">3</span> 
+
             </div>
-          </div>
+          </div><!-- /Short Range Chart -->
+
+          
         </div>
 
         <!-- main panel-->
@@ -141,29 +148,19 @@
 
       <div class="row">
 
-        <!-- Short Range Chart -->
+        
         <div class="col-lg-4">
-
           <div class="panel panel-default">
-            <div class="panel-heading"> Command
+            <div class="panel-heading"> Main Viewer
             </div>
-            <div class="panel-body">
-              <input class="form-control input-sm" id="command" placeholder="command" type="text">
+            <div class="panel-body" style="text-align: center;">
+              <div style="position:relative; height: 300px; background: url('images/texture/StarsMap_2500x1250.jpg'); text-align:center;">
+                <canvas id="canvas" width="100%" height="300"></canvas>
+              </div>
+              
             </div>
           </div>
-
-          <div class="panel panel-default">
-            <div class="panel-body">
-              <table class="table table-bordered table-condensed" style="text-align:center; font-family: courier" id="short-range-chart">
-                <thead><tr><td>&nbsp;</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td></tr></thead>
-                <tbody></tbody>
-              </table>
-
-              Quadrant: <span class="quadrant_y">7</span> , <span class="quadrant_x">7</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sector: <span class="sector_y">3</span> , <span class="sector_x">3</span> 
-
-            </div>
-          </div>
-        </div><!-- /Short Range Chart -->
+        </div>
 
 
         <!-- System Status Panel -->
@@ -236,12 +233,6 @@
             </div>
           </div>
 
-          <div class="panel panel-default">
-            <div class="panel-body text-center">
-              <span style="font-size:130%">U.S.S. Lexington <small>RCB-92</small></span>
-            </div>
-          </div>
-
         </div><!-- / System Status Panel -->
 
 
@@ -250,10 +241,18 @@
         <div class="col-lg-5">
 
           <div class="panel panel-default">
+            <div class="panel-heading"> Command
+            </div>
+            <div class="panel-body">
+              <input class="form-control input-sm" id="command" placeholder="command" type="text">
+            </div>
+          </div>
+
+          <div class="panel panel-default">
             <div class="panel-heading"> Communications
             </div>
             <div class="panel-body">
-              <div style="width:100%; height: 320px; overflow: vertical;" id="communications"></div>
+              <div style="width:100%; height: 220px; overflow: vertical;" id="communications"></div>
             </div>
           </div>
         </div><!-- /Communications -->
@@ -278,6 +277,7 @@
     <script src="js/raphael.2.1.0.min.js"></script>
     <script src="js/justgage.1.0.1.js"></script>
     <script type="text/javascript" src="js/bootbox.js"></script>
+    <script type="text/javascript" src="js/jstrek.objects.js"></script>
     <script type="text/javascript" src="js/jstrek.js"></script>
     <script type="text/javascript">
     $( document ).ready(function() {
