@@ -76,7 +76,7 @@ function init() {
       var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
       enemies = enemies < 0 ? 0 : enemies;
       jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(0, 2), getRandomInt(0, 7), getRandomInt(0, 2));
-      jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies;
+      jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies.length;
     }
   }
 
@@ -158,6 +158,7 @@ function command_handler() {
     if ( event.which == 13 ) {
       event.preventDefault();
       var command = $( "#command" ).val();
+      var command_done = false;
       switch(command) {
         case 'help':
         case 'h':
@@ -325,6 +326,20 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       }
     }
 
+    //Enemies
+    for(i=0; i<jstrek.actual_quadrant.enemies.length; i++) {
+      var positioned = false;
+      while(!positioned) {
+        var x = getRandomInt(1,8);
+        var y = getRandomInt(1,8);
+        if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.enemies[i];
+          $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
+          positioned = true;
+        }
+      }
+    }
+
     //Planets
     for(i=0; i<jstrek.actual_quadrant.planets.length; i++) {
       var positioned = false;
@@ -358,9 +373,9 @@ function show_quadrant(quadrant_y, quadrant_x) {
   //Check valid coordinates
   if(quadrant_x<1 || quadrant_x>8 || quadrant_y<1 || quadrant_y>8) return;
 
-  $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
+  $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
     //Check presence of enemies in actual quadrant
-    if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies>0) {
+    if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length>0) {
       $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
       set_global_status_alert();
     } else {

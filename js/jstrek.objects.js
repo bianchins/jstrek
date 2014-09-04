@@ -1,7 +1,7 @@
 function Quadrant(y,x,enemies, planets, stars, starbases) {
   this.y = y;
   this.x = x;
-  this.enemies = enemies;
+  this.enemies = new Array(enemies);
   this.planets = new Array(planets);
   this.stars = stars;
   this.starbases = starbases;
@@ -19,6 +19,21 @@ function Quadrant(y,x,enemies, planets, stars, starbases) {
     var contain_people = Math.random() < 0.5;
     this.planets[i] = new Planet('AX-'+i, contain_energy, contain_people);
   }
+  //Populate the quadrant with enemies
+  for(i=0; i< enemies; i++) {
+    var health = getRandomInt(50,100);
+    var shields = getRandomInt(0,100);
+    var type = 2;
+    if(shields < 50) type = 1;
+    if(shields > 80) type = 2;
+    this.enemies[i] = new Enemy(health, shields, type);
+  }
+}
+
+function Enemy(health, shields, type) {
+  this.health = health;
+  this.shields = shields;
+  this.type = type;
 }
 
 function Sector(y,x,content) {
