@@ -7,6 +7,8 @@ var initial_turn = true;
 var energy_meter_gauge = null;
 var shields_meter_gauge = null;
 
+document.onkeydown = checkKey;
+
 
 function set_system_status(element_selector, value) {
   $(element_selector).css('width', value+'%').attr('aria-valuenow', value); 
@@ -18,6 +20,28 @@ function set_global_status_green()  {
 
 function set_global_status_alert()  {
   $('#status').removeClass('label-success').addClass('label-danger').text('ALERT');
+}
+
+function checkKey(e) {
+
+    e = e || window.event;
+
+    if (e.keyCode == '38') {
+        // up arrow, shields up
+        if(!jstrek.shields_up) {
+          jstrek.shields_up = true;
+          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington_su.png"/>');
+          log_communication('Shields Up, Sir.','success');
+        }
+    }
+    else if (e.keyCode == '40') {
+        // down arrow, shields down
+        if(jstrek.shields_up) {
+          jstrek.shields_up = false;
+          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington.png"/>');
+          log_communication('Shields Down, Sir.','success');
+        }
+    }
 }
 
 function init() {
@@ -107,8 +131,16 @@ function init() {
 
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
 
-  $( "#command" ).focus();
+  focus_on_command();
 
+}
+
+function focus_on_command() {
+  //Empty command field
+  $( "#command" ).val('');
+  setTimeout(function(){
+    $("#command").focus();
+  }, 0);
 }
 
 function set_warp_speed(speed) {
@@ -139,7 +171,7 @@ function command_handler() {
                     result = search_planet_near();
                     if(result!=null) {
                       //Get info about planet
-                      log_communication(result.name, 'info');
+                      log_communication('<strong>Ship is now in orbit with planet: '+result.name+'</strong><br/>Energy crystal on surface: '+result.contain_energy+'<br/>Intelligent life forms: '+result.contain_people, 'info');
                     }
                     break;
         case 'move':
@@ -158,7 +190,7 @@ function command_handler() {
                             command_move(parseInt(coord_array[0]),parseInt(coord_array[1]),parseInt(coord_array[2]),parseInt(coord_array[3])); 
                           }
                         }
-                        $( "#command" ).val('');
+                        focus_on_command();
                       });
                       break;
         case 'warp':
@@ -176,7 +208,7 @@ function command_handler() {
                           }
                           
                         }
-                        $( "#command" ).val('');
+                        focus_on_command();
                       });
                       break;    
         case 'ack':
@@ -185,8 +217,7 @@ function command_handler() {
         case 'ACK': clear_communications(); break;                        
         default: alert('Command not recognized');
       }
-      //Empty command field
-      $( "#command" ).val('');
+      focus_on_command();
       //Execute the computer turn
       computer_turn();
     }
@@ -316,7 +347,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = 'b';
-          $('#sr'+y+'-'+x).html('<span class="text-success">SB</span>');
+          $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
           positioned = true;
         }
       }
@@ -366,11 +397,11 @@ function move_in_sector(sector_y, sector_x) {
     jstrek.actual_sector.content = null;
     $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('.');
     jstrek.actual_sector = jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1];
-    jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1].content = 's';
+    jstrek.actual_sector.content = 's';
     var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
     $('#sr'+sector_y+'-'+sector_x).html('<img src="images/'+ship_image+'"/>');
     if(initial_turn) {
-      log_communication('Welcome aboard!','success');
+      log_communication('Welcome aboard, Sir.','info');
     }
 
   }
@@ -397,6 +428,8 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
 function computer_turn() {
   //Execute the computer turn
   //Empty now
+
+  $( "#command" ).focus();
 }
 
 function show_warp_starfield() {
