@@ -6,6 +6,7 @@ var warp_animation = null;
 var initial_turn = true;
 var energy_meter_gauge = null;
 var shields_meter_gauge = null;
+var command_done = false;
 
 document.onkeydown = checkKey;
 
@@ -32,6 +33,7 @@ function checkKey(e) {
           jstrek.shields_up = true;
           $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington_su.png"/>');
           log_communication('Shields Up, Sir.','success');
+          command_done = true;
         }
     }
     else if (e.keyCode == '40') {
@@ -40,6 +42,7 @@ function checkKey(e) {
           jstrek.shields_up = false;
           $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington.png"/>');
           log_communication('Shields Down, Sir.','success');
+          command_done = true;
         }
     }
 }
@@ -158,7 +161,6 @@ function command_handler() {
     if ( event.which == 13 ) {
       event.preventDefault();
       var command = $( "#command" ).val();
-      var command_done = false;
       switch(command) {
         case 'help':
         case 'h':
@@ -173,6 +175,7 @@ function command_handler() {
                     if(result!=null) {
                       //Get info about planet
                       log_communication('<strong>Ship is now in orbit with planet: '+result.name+'</strong><br/>Energy crystal on surface: '+result.contain_energy+'<br/>Intelligent life forms: '+result.contain_people, 'info');
+                      computer_turn();
                     }
                     break;
         case 'move':
@@ -185,10 +188,12 @@ function command_handler() {
                         } else {
                           var coord_array = result.split(',');
                           if(coord_array.length==2) {
-                            move_in_sector(coord_array[0],coord_array[1]);
+                            if(move_in_sector(coord_array[0],coord_array[1])) {
+                              computer_turn();
+                            }
                           }
                           if(coord_array.length==4) {
-                            command_move(parseInt(coord_array[0]),parseInt(coord_array[1]),parseInt(coord_array[2]),parseInt(coord_array[3])); 
+                            command_move(parseInt(coord_array[0]),parseInt(coord_array[1]),parseInt(coord_array[2]),parseInt(coord_array[3]));
                           }
                         }
                         focus_on_command();
@@ -204,6 +209,7 @@ function command_handler() {
                         } else {
                           try {
                             set_warp_speed(parseFloat(result));
+                            computer_turn();
                           } catch(err) {
                             //Warp not correct
                           }
@@ -219,8 +225,6 @@ function command_handler() {
         default: alert('Command not recognized');
       }
       focus_on_command();
-      //Execute the computer turn
-      computer_turn();
     }
   });
 }
@@ -333,6 +337,8 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var x = getRandomInt(1,8);
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
+          jstrek.actual_quadrant.enemies[i].y = y;
+          jstrek.actual_quadrant.enemies[i].x = x;
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.enemies[i];
           $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
           positioned = true;
@@ -367,6 +373,10 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         }
       }
     }
+
+    //Execute the computer turn
+    computer_turn();
+
 }
 
 function show_quadrant(quadrant_y, quadrant_x) {
@@ -401,6 +411,7 @@ function move_in_sector(sector_y, sector_x) {
   if(jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1].content!=null) {
     //Sector busy
     log_communication('Moving in '+sector_y+','+sector_x+': the sector is busy!','info');
+    return false;
   } else {
     //Sector free, moving
     $('.sector_y').text(sector_y);
@@ -421,6 +432,7 @@ function move_in_sector(sector_y, sector_x) {
 
   }
   initial_turn = false;
+  return true;
 }
 
 function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
@@ -442,9 +454,35 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
 
 function computer_turn() {
   //Execute the computer turn
-  //Empty now
-
+  //Only if enemies are in actual quadrant
+  if(jstrek.actual_quadrant.enemies.length>0) {
+    console.log('enemy shoots');
+    $( "#main-container" ).effect( "shake" );
+    for(i=0; i<jstrek.actual_quadrant.enemies.length;i++) {
+      //every enemy ship shoots
+      enemy_shoot(jstrek.actual_quadrant.enemies[i]);
+    }
+  }
   $( "#command" ).focus();
+  command_done = false;
+}
+
+function enemy_shoot(enemy) {
+  //Calculate shoot's power
+  var shoot_power = Math.floor((enemy.health + getRandomInt(1,10)) * enemy.type / 10);
+  if(jstrek.shields_up) {
+    //The shoot damages shields
+    jstrek.shields_status-=shoot_power;
+    if(jstrek.shields_status<0) {
+      jstrek.shields_status = 0;
+      shields_up = false;
+    }
+    set_system_status('#shields-status', jstrek.shields_status);
+    shields_meter_gauge.refresh(jstrek.shields_status);
+    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power: '+shoot_power,'alert');
+  } else {
+    //The shoot damages ship's systems
+  }
 }
 
 function show_warp_starfield() {

@@ -26,14 +26,16 @@ function Quadrant(y,x,enemies, planets, stars, starbases) {
     var type = 2;
     if(shields < 50) type = 1;
     if(shields > 80) type = 2;
-    this.enemies[i] = new Enemy(health, shields, type);
+    this.enemies[i] = new Enemy(health, shields, type, 0, 0);
   }
 }
 
-function Enemy(health, shields, type) {
+function Enemy(health, shields, type, y, x) {
   this.health = health;
   this.shields = shields;
   this.type = type;
+  this.y = y;
+  this.x = x;
 }
 
 function Sector(y,x,content) {
