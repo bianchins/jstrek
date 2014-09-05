@@ -102,7 +102,8 @@ function init() {
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
     actual_sector: new Sector(0,0,null),
     shields_up: false,
-    game_points = 0
+    game_points: 0,
+    torpedo_damage_power: 80
   }
 
   set_global_status_green();
@@ -246,6 +247,24 @@ function command_handler() {
                         focus_on_command();
                       });
                       break;
+        case 'torp':
+        case 't':
+        case 'T':
+        case 'TORP':
+                     bootbox.prompt("How many torpedos?", function(result) {
+                        if (result !== null) {
+                          var num = parseInt(result);
+                          for(i=1; i<=num; i++) {
+                            bootbox.prompt("Coords for torpedo #"+i, function(result) {
+                              var coord_array = result.split(',');
+                              if(coord_array.length==2) {
+                                torpedo_shoot(jstrek.actual_quadrant.sectors[parseInt(coord_array[0])-1][parseInt(coord_array[1])-1]);
+                              }
+                            });
+                          }
+                        }
+                      });       
+                      break;               
         case 'warp':
         case 'w':
         case 'W':
@@ -570,6 +589,23 @@ function shoot_delay(enemy, delay) {
   $('#sr'+enemy.y+'-'+enemy.x).animate({backgroundColor: "#aa0000"},1000+delay);
   $('#sr'+enemy.y+'-'+enemy.x).animate({backgroundColor: "#303030"},1000+delay);
   window.setTimeout(function() {enemy_shoot(enemy);}, 2000+delay);
+}
+
+function torpedo_shoot(sector) {
+  if(sector.content == null) {
+    //Empty sector, missed torpedo
+    log_communication('<b>Torpedo '+sector.y+','+sector.x+' missed!</b>','alert');
+  }
+  if(sector.content instanceof Enemy) {
+    sector.content.health-=jstrek.torpedo_damage_power;
+    if(sector.content.health <= 0) {
+      //Enemy destroyed
+      log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>!','success');
+      sector.content = null;
+      $('#sr'+sector.y+'-'+sector.x).html('.');
+      jstrek.torpedos--;
+    }
+  }
 }
 
 function enemy_shoot(enemy) {
