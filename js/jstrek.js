@@ -217,6 +217,10 @@ function command_handler() {
                       jstrek.energy=100;
                       energy_meter_gauge.refresh(jstrek.energy);
                       restore_shields();
+                      for(i=0; i<system_array.length;i++) {
+                        jstrek[system_array[i]] = 100;
+                      }
+                      refresh_systems();
                       computer_turn();
                     }
                     break;                    
