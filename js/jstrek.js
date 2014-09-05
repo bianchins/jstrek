@@ -101,7 +101,8 @@ function init() {
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
     actual_sector: new Sector(0,0,null),
-    shields_up: false
+    shields_up: false,
+    game_points = 0
   }
 
   set_global_status_green();
@@ -276,17 +277,11 @@ function command_handler() {
 }
 
 function hide_planet() {
-  try {
-    $('#canvas').earth3d('destroy');
-    document.getElementById("canvas").width = document.getElementById("canvas").width;
-  } catch(err) {}
+  $('#canvas').css('background','url("images/texture/StarsMap_2500x1250.jpg")'); 
 }
 
 function show_planet(texture) {
-  $('#canvas').earth3d({
-        texture: _texture_folder + texture, // texture used by planet
-        defaultSpeed: 5
-      });
+  $('#canvas').css('background','url("images/texture/'+texture+'") no-repeat');
 }
 
 function add_stardate(stardays) {
@@ -528,7 +523,7 @@ function move_in_sector(sector_y, sector_x) {
   //Update Main Viewer
   var planet_near = search_planet_near();
   if(planet_near != null) {
-    show_planet('0.png');
+    show_planet(planet_near.image);
     console.log(planet_near);
   } 
 
