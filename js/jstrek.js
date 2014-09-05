@@ -23,29 +23,58 @@ function set_global_status_alert()  {
   $('#status').removeClass('label-success').addClass('label-danger').text('ALERT');
 }
 
+function shields_up() {
+ if(!jstrek.shields_up) {
+          jstrek.shields_up = true;
+          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington_su.png"/>');
+          log_communication('Shields Up, Sir.','success');
+          command_done = true;
+        }
+}
+
+function shields_down() {
+  if(jstrek.shields_up) {
+          jstrek.shields_up = false;
+          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington.png"/>');
+          log_communication('Shields Down, Sir.','success');
+          command_done = true;
+        }
+}
+
 function checkKey(e) {
 
     e = e || window.event;
 
     if (e.keyCode == '38') {
         // up arrow, shields up
-        if(!jstrek.shields_up) {
-          jstrek.shields_up = true;
-          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington_su.png"/>');
-          log_communication('Shields Up, Sir.','success');
-          command_done = true;
-        }
+       shields_up();
     }
     else if (e.keyCode == '40') {
         // down arrow, shields down
-        if(jstrek.shields_up) {
-          jstrek.shields_up = false;
-          $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington.png"/>');
-          log_communication('Shields Down, Sir.','success');
-          command_done = true;
-        }
+        shields_down();
     }
 }
+
+
+function restore_shields() {
+  jstrek.shields = 100;
+  shields_meter_gauge.refresh(100);
+}
+
+function refresh_systems() {
+  set_system_status('#energyconverter-status', jstrek.energyconverter_status);
+  set_system_status('#shields-status', jstrek.shields_status);
+  set_system_status('#warp-status', jstrek.warp_status);
+  set_system_status('#impulse-status', jstrek.impulse_status);
+  set_system_status('#lasers-status', jstrek.lasers_status);
+  set_system_status('#torpedos-status', jstrek.torpedo_status);
+  set_system_status('#lifesupport-status', jstrek.lifesupport_status);
+  set_system_status('#srs-status', jstrek.srs_status);
+  set_system_status('#lrs-status', jstrek.lrs_status);
+  set_system_status('#computer-status', 100);
+}
+
+var system_array = ['energyconverter_status','shields_status', 'warp_status','impulse_status','lrs_status', 'laser_status', 'torpedo_status','lifesupport_status','srs_status'];
 
 function init() {
 
@@ -59,11 +88,16 @@ function init() {
     torpedos: 9,
     energy: 100,
     warp: 1.0,
+    shields : 100,
     energyconverter_status: 100,
     shields_status: 100,
     warp_status: 100,
     impulse_status: 100,
     lrs_status: 100,
+    lasers_status: 100,
+    torpedo_status: 100,
+    lifesupport_status: 100,
+    srs_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
     actual_sector: new Sector(0,0,null),
@@ -88,16 +122,7 @@ function init() {
   $('#warp-speed').text('1.0');
   $('#enemies').text(jstrek.enemies);
 
-  set_system_status('#energyconverter-status', 100);
-  set_system_status('#shields-status', 100);
-  set_system_status('#warp-status', 100);
-  set_system_status('#impulse-status', 100);
-  set_system_status('#lasers-status', 100);
-  set_system_status('#torpedos-status', 100);
-  set_system_status('#lifesupport-status', 100);
-  set_system_status('#srs-status', 100);
-  set_system_status('#lrs-status', 100);
-  set_system_status('#computer-status', 100);
+  refresh_systems();
 
   set_system_status('#laser-eff', 100);
   set_system_status('#laser-temp', 0);
@@ -130,11 +155,13 @@ function init() {
 
   for(i=1; i<=8; i++) {
         $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1">.</td><td id="sr'+i+'-2">.</td><td id="sr'+i+'-3">.</td><td id="sr'+i+'-4">.</td><td id="sr'+i+'-5">.</td><td id="sr'+i+'-6">.</td><td id="sr'+i+'-7">.</td><td id="sr'+i+'-8">.</td></tr>');
-      }  
+      }    
 
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
 
   focus_on_command();
+
+
 
 }
 
@@ -178,6 +205,21 @@ function command_handler() {
                       computer_turn();
                     }
                     break;
+        case 'dock':
+        case 'd':
+        case 'D':
+        case 'DOCK':
+                    //Search for starbase near 
+                    result = search_starbase_near();
+                    if(result!=null) {
+                      //Get info about starbase
+                      log_communication('<strong>The Admiral of Starbase '+result.name+' greetings us.</strong>', 'info');
+                      jstrek.energy=100;
+                      energy_meter_gauge.refresh(jstrek.energy);
+                      restore_shields();
+                      computer_turn();
+                    }
+                    break;                    
         case 'move':
         case 'm':
         case 'M':
@@ -232,6 +274,7 @@ function command_handler() {
 function hide_planet() {
   try {
     $('#canvas').earth3d('destroy');
+    document.getElementById("canvas").width = document.getElementById("canvas").width;
   } catch(err) {}
 }
 
@@ -248,18 +291,64 @@ function add_stardate(stardays) {
 }
 
 function search_planet_near() {
-  var planet_found = null;
   var y = jstrek.actual_sector.y - 1;
   var x = jstrek.actual_sector.x - 1;
-  if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x-1].content;
-  if(jstrek.actual_quadrant.sectors[y-1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x].content;
-  if(jstrek.actual_quadrant.sectors[y-1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x+1].content;
-  if(jstrek.actual_quadrant.sectors[y][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x-1].content;
-  if(jstrek.actual_quadrant.sectors[y][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x+1].content;
-  if(jstrek.actual_quadrant.sectors[y+1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x-1].content;
-  if(jstrek.actual_quadrant.sectors[y+1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x].content;
-  if(jstrek.actual_quadrant.sectors[y+1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x+1].content;
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y-1][x+1].content;
+  } catch(err) {}  
+  try {  
+    if(jstrek.actual_quadrant.sectors[y][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y][x+1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x-1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x+1].content instanceof Planet) return jstrek.actual_quadrant.sectors[y+1][x+1].content;
+  } catch(err) {}
+    
+  return null;
+}
 
+function search_starbase_near() {
+  var y = jstrek.actual_sector.y - 1;
+  var x = jstrek.actual_sector.x - 1;
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y-1][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y-1][x].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x+1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y-1][x+1].content;
+  } catch(err) {}  
+  try {  
+    if(jstrek.actual_quadrant.sectors[y][x-1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y][x+1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y][x+1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x-1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y+1][x-1].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y+1][x].content;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x+1].content instanceof Starbase) return jstrek.actual_quadrant.sectors[y+1][x+1].content;
+  } catch(err) {}
+    
   return null;
 }
 
@@ -367,7 +456,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var x = getRandomInt(1,8);
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
-          jstrek.actual_quadrant.sectors[y-1][x-1].content = 'b';
+          jstrek.actual_quadrant.sectors[y-1][x-1].content = new Starbase(chance.syllable(), getRandomInt(1,3));
           $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
           positioned = true;
         }
@@ -387,10 +476,17 @@ function show_quadrant(quadrant_y, quadrant_x, is_actual) {
     //Check presence of enemies in actual quadrant
     if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length>0) {
       $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
-      if(is_actual) set_global_status_alert();
+      if(is_actual) {
+        if(initial_turn) {
+          shields_up();
+        }
+        set_global_status_alert();
+      }
     } else {
       $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger').addClass('text-success');
-      if(is_actual)set_global_status_green();
+      if(is_actual) {
+        set_global_status_green();
+      }
     }
 }
 
@@ -419,6 +515,15 @@ function move_in_sector(sector_y, sector_x) {
 
   }
   initial_turn = false;
+
+  //Update Main Viewer
+  var planet_near = search_planet_near();
+  if(planet_near != null) {
+    show_planet('0.png');
+  } else {
+    hide_planet();
+  }
+
   return true;
 }
 
@@ -443,31 +548,52 @@ function computer_turn() {
   //Execute the computer turn
   //Only if enemies are in actual quadrant
   if(jstrek.actual_quadrant.enemies.length>0) {
-    console.log('enemy shoots');
-    $( "#main-container" ).effect( "shake" );
     for(i=0; i<jstrek.actual_quadrant.enemies.length;i++) {
+      var enemy = jstrek.actual_quadrant.enemies[i];
+
       //every enemy ship shoots
-      enemy_shoot(jstrek.actual_quadrant.enemies[i]);
+      shoot_delay(enemy, 500*i);
+      
     }
   }
   $( "#command" ).focus();
   command_done = false;
 }
 
+function shoot_delay(enemy, delay) {
+  $('#sr'+enemy.y+'-'+enemy.x).animate({backgroundColor: "#aa0000"},1000+delay);
+  $('#sr'+enemy.y+'-'+enemy.x).animate({backgroundColor: "#303030"},1000+delay);
+  window.setTimeout(function() {enemy_shoot(enemy);}, 2000+delay);
+}
+
 function enemy_shoot(enemy) {
   //Calculate shoot's power
   var shoot_power = Math.floor((enemy.health + getRandomInt(1,10)) * enemy.type / 10);
+
   if(jstrek.shields_up) {
     //The shoot damages shields
-    jstrek.shields_status-=shoot_power;
-    if(jstrek.shields_status<0) {
-      jstrek.shields_status = 0;
-      shields_up = false;
+    jstrek.shields-=shoot_power;
+    if(jstrek.shields<0) {
+      jstrek.shields = 0;
+      jstrek.shields_up = false;
     }
-    set_system_status('#shields-status', jstrek.shields_status);
-    shields_meter_gauge.refresh(jstrek.shields_status);
-    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power: '+shoot_power,'alert');
+    shields_meter_gauge.refresh(jstrek.shields);
+
+    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power absorbed by shields: '+shoot_power,'alert');
   } else {
     //The shoot damages ship's systems
+
+    var remaining_power = shoot_power;
+    while(remaining_power>0) {
+      var random_system = getRandomInt(0,6);
+      var random_damage = getRandomInt(0,remaining_power+1);
+      jstrek[system_array[random_system]]-=random_damage;
+      remaining_power-=random_damage;
+    }
+    refresh_systems();
+    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power: '+shoot_power,'alert');
   }
+  //The shoot hits the ship
+  $('body').animate({backgroundColor: "#aa0000"},1000);
+  $('body').animate({backgroundColor: "#303030"},1000);
 }
