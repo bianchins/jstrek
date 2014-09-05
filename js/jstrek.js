@@ -103,7 +103,7 @@ function init() {
     actual_sector: new Sector(0,0,null),
     shields_up: false,
     game_points: 0,
-    torpedo_damage_power: 80
+    torpedo_damage_power: 120
   }
 
   set_global_status_green();
@@ -592,20 +592,38 @@ function shoot_delay(enemy, delay) {
 }
 
 function torpedo_shoot(sector) {
+
   if(sector.content == null) {
     //Empty sector, missed torpedo
     log_communication('<b>Torpedo '+sector.y+','+sector.x+' missed!</b>','alert');
   }
+  //Enemy
   if(sector.content instanceof Enemy) {
-    sector.content.health-=jstrek.torpedo_damage_power;
-    if(sector.content.health <= 0) {
-      //Enemy destroyed
-      log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>!','success');
-      sector.content = null;
-      $('#sr'+sector.y+'-'+sector.x).html('.');
-      jstrek.torpedos--;
+    sector.content.shields-=jstrek.torpedo_damage_power;
+    if(sector.content.shields < 0) {
+      sector.content.health+=sector.content.shields;
+      sector.content.shields = 0;
+      if(sector.content.health <= 0) {
+        //Enemy destroyed
+        log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>','success');
+        sector.content = null;
+        $('#sr'+sector.y+'-'+sector.x).html('.');
+      } 
+      else {
+        log_communication('<b>Sir, we hit Enemy in '+sector.y+','+sector.x+'</b>!','success');
+      }     
+    } else {
+      log_communication('<b>Sir, we hit Enemy\'s shields in '+sector.y+','+sector.x+'</b>!','success');
     }
   }
+  //Planet
+  if(sector.content instanceof Planet) {
+    log_communication('Sir, we damaged the planet '+sector.content.name+'!','warning');
+  }
+
+  //decrement torpedos
+  $('#torp'+jstrek.torpedos).removeClass('text-danger').addClass('text-muted')
+  jstrek.torpedos--;
 }
 
 function enemy_shoot(enemy) {
@@ -621,7 +639,7 @@ function enemy_shoot(enemy) {
     }
     shields_meter_gauge.refresh(jstrek.shields);
 
-    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power absorbed by shields: '+shoot_power,'alert');
+    log_communication('<b>Attack from ship in '+enemy.y+','+enemy.x+'</b><br/>Shoot Power absorbed by our shields: '+shoot_power,'alert');
   } else {
     //The shoot damages ship's systems
 
