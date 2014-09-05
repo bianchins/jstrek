@@ -491,6 +491,9 @@ function show_quadrant(quadrant_y, quadrant_x, is_actual) {
 }
 
 function move_in_sector(sector_y, sector_x) {
+  //Check coordinates
+  if(sector_y>8 || sector_y<1 || sector_x>8 || sector_x<0) { log_communication('Wrong coordinates!','info'); return; }
+
   if(jstrek.actual_quadrant.sectors[sector_y-1][sector_x-1].content!=null) {
     //Sector busy
     log_communication('Moving in '+sector_y+','+sector_x+': the sector is busy!','info');
@@ -516,21 +519,25 @@ function move_in_sector(sector_y, sector_x) {
   }
   initial_turn = false;
 
+  hide_planet();
+
   //Update Main Viewer
   var planet_near = search_planet_near();
   if(planet_near != null) {
     show_planet('0.png');
-  } else {
-    hide_planet();
-  }
+    console.log(planet_near);
+  } 
 
   return true;
 }
 
 function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
+
+  //Check coordinates
+  if(quadrant_y>8 || quadrant_y<1 || quadrant_x>8 || quadrant_x<0) { log_communication('Wrong coordinates!','info'); return; }
+
   if(jstrek.actual_quadrant.y!=quadrant_y || jstrek.actual_quadrant.x!=quadrant_x) {
     
-
     show_warp_starfield();
 
     window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
