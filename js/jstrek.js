@@ -55,7 +55,6 @@ function checkKey(e) {
     }
 }
 
-
 function restore_shields() {
   jstrek.shields = 100;
   shields_meter_gauge.refresh(100);
@@ -72,6 +71,9 @@ function refresh_systems() {
   set_system_status('#srs-status', jstrek.srs_status);
   set_system_status('#lrs-status', jstrek.lrs_status);
   set_system_status('#computer-status', 100);
+  for(i=1; i<=jstrek.torpedos; i++) {
+    $('#torp'+i).addClass('text-danger').removeClass('text-muted');
+  }
 }
 
 var system_array = ['energyconverter_status','shields_status', 'warp_status','impulse_status','lrs_status', 'laser_status', 'torpedo_status','lifesupport_status','srs_status'];
@@ -222,6 +224,7 @@ function command_handler() {
                       for(i=0; i<system_array.length;i++) {
                         jstrek[system_array[i]] = 100;
                       }
+                      jstrek.torpedos = 9;
                       refresh_systems();
                       computer_turn();
                     }
@@ -254,15 +257,22 @@ function command_handler() {
                      bootbox.prompt("How many torpedos?", function(result) {
                         if (result !== null) {
                           var num = parseInt(result);
+                          if(num>jstrek.torpedos) {
+                            log_communication('We have not enought torpedos!','warning');
+                            return;
+                          }
                           for(i=1; i<=num; i++) {
                             bootbox.prompt("Coords for torpedo #"+i, function(result) {
-                              var coord_array = result.split(',');
-                              if(coord_array.length==2) {
-                                torpedo_shoot(jstrek.actual_quadrant.sectors[parseInt(coord_array[0])-1][parseInt(coord_array[1])-1]);
+                              if(result!==null) {
+                                var coord_array = result.split(',');
+                                if(coord_array.length==2) {
+                                  torpedo_shoot(jstrek.actual_quadrant.sectors[parseInt(coord_array[0])-1][parseInt(coord_array[1])-1], (i==num));
+                                }
                               }
                             });
                           }
                         }
+                        focus_on_command();
                       });       
                       break;               
         case 'warp':
@@ -490,7 +500,7 @@ function show_quadrant(quadrant_y, quadrant_x, is_actual) {
   //Check valid coordinates
   if(quadrant_x<1 || quadrant_x>8 || quadrant_y<1 || quadrant_y>8) return;
 
-  $('#g'+quadrant_y+'-'+quadrant_x).html(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars);
+  $('#g'+quadrant_y+'-'+quadrant_x).html('<b>'+jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].starbases + '' + jstrek.galaxy[quadrant_y-1][quadrant_x-1].stars+'</b>');
     //Check presence of enemies in actual quadrant
     if(jstrek.galaxy[quadrant_y-1][quadrant_x-1].enemies.length>0) {
       $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-success').addClass('text-danger');
@@ -499,11 +509,17 @@ function show_quadrant(quadrant_y, quadrant_x, is_actual) {
           shields_up();
         }
         set_global_status_alert();
+        $('#g'+quadrant_y+'-'+quadrant_x).addClass('bg-warning');
+      } else {
+        $('#g'+quadrant_y+'-'+quadrant_x).removeClass('bg-warning');
       }
     } else {
       $('#g'+quadrant_y+'-'+quadrant_x).removeClass('text-danger').addClass('text-success');
       if(is_actual) {
         set_global_status_green();
+        $('#g'+quadrant_y+'-'+quadrant_x).addClass('bg-warning');
+      } else {
+        $('#g'+quadrant_y+'-'+quadrant_x).removeClass('bg-warning');
       }
     }
 }
@@ -591,7 +607,7 @@ function shoot_delay(enemy, delay) {
   window.setTimeout(function() {enemy_shoot(enemy);}, 2000+delay);
 }
 
-function torpedo_shoot(sector) {
+function torpedo_shoot(sector, after_computer_turn_flag) {
 
   if(sector.content == null) {
     //Empty sector, missed torpedo
@@ -606,8 +622,16 @@ function torpedo_shoot(sector) {
       if(sector.content.health <= 0) {
         //Enemy destroyed
         log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>','success');
-        sector.content = null;
         $('#sr'+sector.y+'-'+sector.x).html('.');
+        console.log(jstrek.actual_quadrant.enemies);
+        for(i=0; i< jstrek.actual_quadrant.enemies.length; i++) {
+          if(jstrek.actual_quadrant.enemies[i]===sector.content) {
+            jstrek.actual_quadrant.enemies.splice(i,1);
+            break;
+          }
+        }
+        sector.content = null;
+        show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, true);
       } 
       else {
         log_communication('<b>Sir, we hit Enemy in '+sector.y+','+sector.x+'</b>!','success');
@@ -622,8 +646,12 @@ function torpedo_shoot(sector) {
   }
 
   //decrement torpedos
-  $('#torp'+jstrek.torpedos).removeClass('text-danger').addClass('text-muted')
+  $('#torp'+jstrek.torpedos).removeClass('text-danger').addClass('text-muted');
   jstrek.torpedos--;
+
+  if(after_computer_turn_flag) {
+    computer_turn();
+  }
 }
 
 function enemy_shoot(enemy) {
