@@ -575,6 +575,9 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
 
   if(jstrek.actual_quadrant.y!=quadrant_y || jstrek.actual_quadrant.x!=quadrant_x) {
     
+    //Disable actual quadrant in map
+    show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
+    
     show_warp_starfield();
 
     window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
