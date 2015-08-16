@@ -196,7 +196,10 @@ function command_handler() {
         case 'help':
         case 'h':
         case 'H':
-        case 'HELP': alert('help'); break;
+        case 'HELP': 
+            bootbox.alert("Enter:<br> 'O' to orbit near a planet<br/> 'D' to dock a Space Station<br/> 'M' to move the ship<br/> 'W' to change warp speed<br/> 'T' to use torpedos (weapons)");
+            focus_on_command();
+            break;
         case 'orbit':
         case 'o':
         case 'O':
