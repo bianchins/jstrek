@@ -625,6 +625,7 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
       if(sector.content.health <= 0) {
         //Enemy destroyed
         log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>','success');
+        
         $('#sr'+sector.y+'-'+sector.x).html('.');
         console.log(jstrek.actual_quadrant.enemies);
         for(i=0; i< jstrek.actual_quadrant.enemies.length; i++) {
@@ -633,8 +634,22 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
             break;
           }
         }
+        jstrek.enemies--;
+        
         sector.content = null;
         show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, true);
+        
+        if(jstrek.enemies==0) {
+            //End of the game!!
+            bootbox.confirm("Good Work! End of the game. Do you want to play again?", function(result) {
+                if(result) {
+                    init();
+                } else {
+                    $("#command").prop('disabled', true);
+                }
+            }); 
+        }
+        
       } 
       else {
         log_communication('<b>Sir, we hit Enemy in '+sector.y+','+sector.x+'</b>!','success');
@@ -687,4 +702,19 @@ function enemy_shoot(enemy) {
   //The shoot hits the ship
   $('body').animate({backgroundColor: "#aa0000"},1000);
   $('body').animate({backgroundColor: "#303030"},1000);
+}
+
+function check_energy() {
+    if(jstrek.energy <=0) {
+        //Should not go under zero
+        jstrek.energy = 0;
+        //End of the game, sorry
+        bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
+            if(result) {
+                init();
+            } else {
+                $("#command").prop('disabled', true);
+            }
+        }); 
+    }
 }
