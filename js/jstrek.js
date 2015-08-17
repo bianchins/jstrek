@@ -8,6 +8,13 @@ var energy_meter_gauge = null;
 var shields_meter_gauge = null;
 var command_done = false;
 
+var debug = false;
+if(debug) {
+    window.onerror = function(error, url, line) {
+        console.log('Error: '+error+' in line '+line+', '+url);
+    };
+}
+
 document.onkeydown = checkKey;
 
 
@@ -167,8 +174,13 @@ function init() {
   refresh_systems();
 
   for(i=1; i<=8; i++) {
-        $('#known-galaxy-chart tbody').append('<tr><td>'+i+'</td><td id="g'+i+'-1">...</td><td id="g'+i+'-2">...</td><td id="g'+i+'-3">...</td><td id="g'+i+'-4">...</td><td id="g'+i+'-5">...</td><td id="g'+i+'-6">...</td><td id="g'+i+'-7">...</td><td id="g'+i+'-8">...</td></tr>');
+        $('#known-galaxy-chart tbody').append('<tr><td>'+i+'</td><td id="g'+i+'-1" class="lrc_cell" data-y="'+i+'" data-x="1">...</td><td id="g'+i+'-2" class="lrc_cell" data-y="'+i+'" data-x="2">...</td><td id="g'+i+'-3" class="lrc_cell" data-y="'+i+'" data-x="3">...</td><td id="g'+i+'-4" class="lrc_cell" data-y="'+i+'" data-x="4">...</td><td id="g'+i+'-5" class="lrc_cell" data-x="5">...</td><td id="g'+i+'-6" class="lrc_cell" data-y="'+i+'" data-x="6">...</td><td id="g'+i+'-7" class="lrc_cell" data-y="'+i+'" data-x="7">...</td><td id="g'+i+'-8" class="lrc_cell" data-y="'+i+'" data-x="8">...</td></tr>');
       } 
+
+  $('.lrc_cell').click(function(){
+      
+        command_move(parseInt($(this).attr('data-y')),parseInt($(this).attr('data-x')),1,1);
+  });
 
   for(i=1; i<=8; i++) {
         $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">.</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">.</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">.</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">.</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">.</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">.</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">.</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">.</td></tr>');
@@ -276,7 +288,7 @@ function command_handler() {
         case 't':
         case 'T':
         case 'TORP':
-                    if(torpedo_status>=50) {
+                    if(jstrek.torpedo_status>=50) {
                      bootbox.prompt("How many torpedos?", function(result) {
                         if (result !== null) {
                           var num = parseInt(result);
@@ -580,6 +592,7 @@ function show_quadrant_if_lrs_is_damaged(quadrant_y, quadrant_x) {
 }
 
 function show_quadrant(quadrant_y, quadrant_x, is_actual) {
+
   //Check valid coordinates
   if(quadrant_x<1 || quadrant_x>8 || quadrant_y<1 || quadrant_y>8) return;
 
