@@ -105,7 +105,7 @@ function init() {
     energyconverter_status: 100,
     shields_status: 100,
     warp_status: 100,
-    impulse_status: 20,
+    impulse_status: 100,
     lrs_status: 100,
     lasers_status: 100,
     torpedo_status: 100,
@@ -690,10 +690,11 @@ function computer_turn() {
 
       //every enemy ship shoots
       shoot_delay(enemy, 500*i);
-      
+      add_stardate(0.1);
     }
   }
-  $( "#command" ).focus();
+  
+    focus_on_command();
   command_done = false;
 }
 
@@ -801,6 +802,7 @@ function enemy_shoot(enemy) {
 }
 
 function cron_repair() {
+        
     if(jstrek.energyconverter_status>0) {
         if(jstrek.energy<100) {
             jstrek.energy++;

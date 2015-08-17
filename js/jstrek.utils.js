@@ -142,10 +142,10 @@ function clear_communications() {
 
 function log_communication(message, type) {
   switch(type) {
-    case 'alert': $('#communications').prepend('<div class="alert alert-danger" role="alert">'+message+'</div>'); break;
-    case 'info': $('#communications').prepend('<div class="alert alert-info" role="alert">'+message+'</div>'); break;
-    case 'warning': $('#communications').prepend('<div class="alert alert-warning" role="alert">'+message+'</div>'); break;
-    case 'success': $('#communications').prepend('<div class="alert alert-success" role="alert">'+message+'</div>'); break;
+    case 'alert': $('#communications').prepend('<div class="alert alert-danger" role="alert">[Stardate: '+jstrek.stardate.toFixed(1)+'] '+message+'</div>'); break;
+    case 'info': $('#communications').prepend('<div class="alert alert-info" role="alert">[Stardate: '+jstrek.stardate.toFixed(1)+'] '+message+'</div>'); break;
+    case 'warning': $('#communications').prepend('<div class="alert alert-warning" role="alert">[Stardate: '+jstrek.stardate.toFixed(1)+'] '+message+'</div>'); break;
+    case 'success': $('#communications').prepend('<div class="alert alert-success" role="alert">[Stardate: '+jstrek.stardate.toFixed(1)+'] '+message+'</div>'); break;
   }
 }
 
