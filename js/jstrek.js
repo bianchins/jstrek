@@ -12,6 +12,15 @@ document.onkeydown = checkKey;
 
 
 function set_system_status(element_selector, value) {
+  if(value < 30) {
+      $(element_selector).removeClass('progress-bar-warning').removeClass('progress-bar-success').addClass('progress-bar-danger');
+  } 
+  if(value < 50 && value >= 30) {
+      $(element_selector).removeClass('progress-bar-danger').removeClass('progress-bar-success').addClass('progress-bar-warning');
+  } 
+  if(value >= 50) {
+      $(element_selector).removeClass('progress-bar-danger').removeClass('progress-bar-warning').addClass('progress-bar-success');
+  }
   $(element_selector).css('width', value+'%').attr('aria-valuenow', value); 
 }
 
@@ -24,7 +33,7 @@ function set_global_status_alert()  {
 }
 
 function shields_up() {
- if(!jstrek.shields_up) {
+ if(!jstrek.shields_up && jstrek.shields>0) {
           jstrek.shields_up = true;
           $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/lexington_su.png"/>');
           log_communication('Shields Up, Sir.','success');
@@ -74,6 +83,8 @@ function refresh_systems() {
   for(i=1; i<=jstrek.torpedos; i++) {
     $('#torp'+i).addClass('text-danger').removeClass('text-muted');
   }
+  shields_meter_gauge.refresh(jstrek.shields);
+  energy_meter_gauge.refresh(jstrek.energy);
 }
 
 var system_array = ['energyconverter_status','shields_status', 'warp_status','impulse_status','lrs_status', 'laser_status', 'torpedo_status','lifesupport_status','srs_status'];
@@ -94,7 +105,7 @@ function init() {
     energyconverter_status: 100,
     shields_status: 100,
     warp_status: 100,
-    impulse_status: 100,
+    impulse_status: 20,
     lrs_status: 100,
     lasers_status: 100,
     torpedo_status: 100,
@@ -126,7 +137,7 @@ function init() {
   $('#warp-speed').text('1.0');
   $('#enemies').text(jstrek.enemies);
 
-  refresh_systems();
+  
 
   set_system_status('#laser-eff', 100);
   set_system_status('#laser-temp', 0);
@@ -153,14 +164,21 @@ function init() {
   $('#known-galaxy-chart tbody').html('');
   $('#short-range-chart tbody').html('');
 
+  refresh_systems();
+
   for(i=1; i<=8; i++) {
         $('#known-galaxy-chart tbody').append('<tr><td>'+i+'</td><td id="g'+i+'-1">...</td><td id="g'+i+'-2">...</td><td id="g'+i+'-3">...</td><td id="g'+i+'-4">...</td><td id="g'+i+'-5">...</td><td id="g'+i+'-6">...</td><td id="g'+i+'-7">...</td><td id="g'+i+'-8">...</td></tr>');
       } 
 
   for(i=1; i<=8; i++) {
-        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1">.</td><td id="sr'+i+'-2">.</td><td id="sr'+i+'-3">.</td><td id="sr'+i+'-4">.</td><td id="sr'+i+'-5">.</td><td id="sr'+i+'-6">.</td><td id="sr'+i+'-7">.</td><td id="sr'+i+'-8">.</td></tr>');
-      }    
-
+        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">.</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">.</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">.</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">.</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">.</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">.</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">.</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">.</td></tr>');
+  }
+  
+  //Every minute, crew repair systems and the energy converter produces energy
+  setInterval(function(){ 
+      cron_repair();
+  }, 60000);
+  
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
 
   focus_on_command();
@@ -197,8 +215,9 @@ function command_handler() {
         case 'h':
         case 'H':
         case 'HELP': 
-            bootbox.alert("Enter:<br> 'O' to orbit near a planet<br/> 'D' to dock a Space Station<br/> 'M' to move the ship<br/> 'W' to change warp speed<br/> 'T' to use torpedos (weapons)");
-            focus_on_command();
+            bootbox.alert("Enter:<br> 'O' to orbit near a planet<br/> 'D' to dock a Space Station<br/> 'M' to move the ship<br/> 'W' to change warp speed<br/> 'T' to use torpedos (weapons)", function() {
+                focus_on_command();
+            });
             break;
         case 'orbit':
         case 'o':
@@ -257,6 +276,7 @@ function command_handler() {
         case 't':
         case 'T':
         case 'TORP':
+                    if(torpedo_status>=50) {
                      bootbox.prompt("How many torpedos?", function(result) {
                         if (result !== null) {
                           var num = parseInt(result);
@@ -276,7 +296,12 @@ function command_handler() {
                           }
                         }
                         focus_on_command();
-                      });       
+                      }); 
+                    } else {
+                        bootbox.alert('Sorry, Sir. Torpedo\'s system is under 50%. We can\'t use them.',function() {
+                            focus_on_command(); 
+                        });
+                    }
                       break;               
         case 'warp':
         case 'w':
@@ -405,7 +430,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       $('#short-range-chart tbody').html('');
 
       for(i=1; i<=8; i++) {
-        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1">.</td><td id="sr'+i+'-2">.</td><td id="sr'+i+'-3">.</td><td id="sr'+i+'-4">.</td><td id="sr'+i+'-5">.</td><td id="sr'+i+'-6">.</td><td id="sr'+i+'-7">.</td><td id="sr'+i+'-8">.</td></tr>');
+        $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">.</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">.</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">.</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">.</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">.</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">.</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">.</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">.</td></tr>');
       } 
 
     } 
@@ -420,7 +445,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     $('.quadrant_y').text(quadrant_y);
     $('.quadrant_x').text(quadrant_x);
 
-    //Long Range Scanner (TODO)
+    //Long Range Scanner
     if(jstrek.lrs_status > 50) {
       //LRS works if it is > 50%
       show_quadrant(quadrant_y-1, quadrant_x-1, false);
@@ -431,9 +456,30 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       show_quadrant(quadrant_y+1, quadrant_x+1, false);
       show_quadrant(quadrant_y, quadrant_x-1, false);
       show_quadrant(quadrant_y, quadrant_x+1, false);     
+    } else {
+        show_quadrant_if_lrs_is_damaged(quadrant_y-1, quadrant_x-1);
+        show_quadrant_if_lrs_is_damaged(quadrant_y-1, quadrant_x);
+        show_quadrant_if_lrs_is_damaged(quadrant_y-1, quadrant_x+1);  
+        show_quadrant_if_lrs_is_damaged(quadrant_y+1, quadrant_x-1);
+        show_quadrant_if_lrs_is_damaged(quadrant_y+1, quadrant_x);
+        show_quadrant_if_lrs_is_damaged(quadrant_y+1, quadrant_x+1);
+        show_quadrant_if_lrs_is_damaged(quadrant_y, quadrant_x-1);
+        show_quadrant_if_lrs_is_damaged(quadrant_y, quadrant_x+1); 
     }
 
     move_in_sector(sector_y, sector_x);
+
+    if(jstrek.srs_status<=50) {
+        //Short Range Scanner doesn't work!
+        $('#short-range-chart tbody').html('');
+
+        for(i=1; i<=8; i++) {
+          $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">?</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">?</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">?</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">?</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">?</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">?</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">?</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">?</td></tr>');
+        }
+        
+        var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
+        $('#sr'+sector_y+'-'+sector_x).html('<img src="images/'+ship_image+'"/>');
+    }
 
     //Populating sector
     //Stars
@@ -444,7 +490,11 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = '*';
-          $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
+          if(jstrek.srs_status>50) {
+            $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
+          } else {
+            $('#sr'+y+'-'+x).html('?');  
+          }
           positioned = true;
         }
       }
@@ -460,7 +510,11 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
           jstrek.actual_quadrant.enemies[i].y = y;
           jstrek.actual_quadrant.enemies[i].x = x;
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.enemies[i];
-          $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
+          if(jstrek.srs_status>50) {
+            $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
+          } else {
+            $('#sr'+y+'-'+x).html('?');  
+          }
           positioned = true;
         }
       }
@@ -474,7 +528,11 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.planets[i];
-          $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
+          if(jstrek.srs_status>50) {
+            $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
+          } else {
+            $('#sr'+y+'-'+x).html('?');  
+          }
           positioned = true;
         }
       }
@@ -488,15 +546,37 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = new Starbase(chance.syllable(), getRandomInt(1,3));
-          $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
+          if(jstrek.srs_status>50) {
+            $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
+          } else {
+            $('#sr'+y+'-'+x).html('?');  
+          }
           positioned = true;
         }
       }
     }
+    
+    //If user clicks on a sector, ship moves in it
+    $('.src_cell').click(function(e) {
+        //Check impulse engine
+        if(jstrek.impulse_status>30) {  
+            if($(this).attr('data-y')!=jstrek.actual_sector.y || $(this).attr('data-x')!=jstrek.actual_sector.x) {
+                if(move_in_sector($(this).attr('data-y'),$(this).attr('data-x'))) {
+                    computer_turn();
+                }
+            }
+        } else {
+            bootbox.alert('Sorry, Sir. Impulse Engine are damaged! We can\'t move in another sector',function() {focus_on_command();});
+        }
+    });
 
     //Execute the computer turn
     computer_turn();
 
+}
+
+function show_quadrant_if_lrs_is_damaged(quadrant_y, quadrant_x) {
+    $('#g'+quadrant_y+'-'+quadrant_x).html('<b>???</b>');
 }
 
 function show_quadrant(quadrant_y, quadrant_x, is_actual) {
@@ -574,19 +654,29 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
   if(quadrant_y>8 || quadrant_y<1 || quadrant_x>8 || quadrant_x<0) { log_communication('Wrong coordinates!','info'); return; }
 
   if(jstrek.actual_quadrant.y!=quadrant_y || jstrek.actual_quadrant.x!=quadrant_x) {
-    
-    //Disable actual quadrant in map
-    show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
-    
-    show_warp_starfield();
+    //Check warp engine
+    if(jstrek.warp_status>0) {  
+        //Disable actual quadrant in map
+        show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
 
-    window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+        show_warp_starfield();
 
-    return;
+        window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+
+        return;
+    } else {
+        bootbox.alert('Sorry, Sir. Warp Engine are damaged! We can\'t move in another quadrant',function() {focus_on_command();});
+    }
 
   } else {
-    //Already in Quadrant, move in sector
-    move_in_sector(sector_y, sector_x);
+      
+    //Check impulse engine
+    if(jstrek.impulse_status>0) {  
+        //Already in Quadrant, move in sector
+        move_in_sector(sector_y, sector_x);
+    } else {
+        bootbox.alert('Sorry, Sir. Impulse Engine are damaged! We can\'t move in another sector',function() {focus_on_command();});
+    }
   }
   
 }
@@ -638,6 +728,7 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
           }
         }
         jstrek.enemies--;
+        $('#enemies').text(jstrek.enemies);
         
         sector.content = null;
         show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, true);
@@ -652,7 +743,7 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
                 }
             }); 
         }
-        
+        focus_on_command();
       } 
       else {
         log_communication('<b>Sir, we hit Enemy in '+sector.y+','+sector.x+'</b>!','success');
@@ -677,14 +768,16 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
 
 function enemy_shoot(enemy) {
   //Calculate shoot's power
-  var shoot_power = Math.floor((enemy.health + getRandomInt(1,10)) * enemy.type / 10);
+  var randomNumber = getRandomInt(1,10);
+  var shoot_power = Math.floor((enemy.health*2 + randomNumber) * enemy.type / 10 + randomNumber);
 
   if(jstrek.shields_up) {
     //The shoot damages shields
     jstrek.shields-=shoot_power;
     if(jstrek.shields<0) {
       jstrek.shields = 0;
-      jstrek.shields_up = false;
+      //Shields don't work anymore
+      shields_down();
     }
     shields_meter_gauge.refresh(jstrek.shields);
 
@@ -707,12 +800,38 @@ function enemy_shoot(enemy) {
   $('body').animate({backgroundColor: "#303030"},1000);
 }
 
-function check_energy() {
+function cron_repair() {
+    if(jstrek.energyconverter_status>0) {
+        if(jstrek.energy<100) {
+            jstrek.energy++;
+        }
+    }
+
+    if(jstrek.shields<100) {
+        jstrek.shields++;
+    }
+    refresh_systems();
+    
+    //Diabolic!
+    computer_turn();
+}
+
+function check_ship_status() {
     if(jstrek.energy <=0) {
         //Should not go under zero
         jstrek.energy = 0;
         //End of the game, sorry
         bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
+            if(result) {
+                init();
+            } else {
+                $("#command").prop('disabled', true);
+            }
+        }); 
+    }
+    
+    if(jstrek.lifesupport_status<=0) {
+        bootbox.confirm("Sorry, life support are without energy. Your crew is died. Would you try again?", function(result) {
             if(result) {
                 init();
             } else {
