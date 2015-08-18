@@ -7,6 +7,7 @@ var initial_turn = true;
 var energy_meter_gauge = null;
 var shields_meter_gauge = null;
 var command_done = false;
+var in_warp = false;
 
 var debug = false;
 if(debug) {
@@ -178,8 +179,10 @@ function init() {
       } 
 
   $('.lrc_cell').click(function(){
-      
-        command_move(parseInt($(this).attr('data-y')),parseInt($(this).attr('data-x')),1,1);
+        if(!in_warp) {
+            command_move(parseInt($(this).attr('data-y')),parseInt($(this).attr('data-x')),1,1);
+        }
+    
   });
 
   for(i=1; i<=8; i++) {
@@ -427,7 +430,7 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       document.getElementById("canvas").width = document.getElementById("canvas").width;
       hide_planet();
     } catch(err) {}
-    
+    in_warp = false;
     if(!initial_turn) {
       //Change stardate
       add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
@@ -671,7 +674,7 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
     if(jstrek.warp_status>0) {  
         //Disable actual quadrant in map
         show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
-
+        in_warp = true;
         show_warp_starfield();
 
         window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
