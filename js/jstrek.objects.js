@@ -17,7 +17,7 @@ function Quadrant(y,x,enemies, planets, stars, starbases) {
   for(i=0; i< planets; i++) {
     var contain_energy = Math.random() < 0.5;
     var contain_people = Math.random() < 0.5;
-    this.planets[i] = new Planet(chance.word({syllables: 3}), contain_energy, contain_people, chance.integer({min: 0, max: 2})+'.png');
+    this.planets[i] = new Planet(chance.word({syllables: 3}), contain_energy, contain_people, chance.integer({min: 0, max: 4})+'.png');
   }
   //Populate the quadrant with enemies
   for(i=0; i< enemies; i++) {

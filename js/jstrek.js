@@ -430,13 +430,20 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
       document.getElementById("canvas").width = document.getElementById("canvas").width;
       hide_planet();
     } catch(err) {}
-    in_warp = false;
+    
     if(!initial_turn) {
-      //Change stardate
-      add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+        try {
+            //Change stardate
+            add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+        } catch(err) {
+            add_stardate(0.5);
+        }
 
       //Calculate energy waste
-      var energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
+      var energy_wasted = 3;
+      try {
+          energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
+      } catch(err) {}
       
       jstrek.energy-=energy_wasted;
 
@@ -584,7 +591,9 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
             bootbox.alert('Sorry, Sir. Impulse Engine are damaged! We can\'t move in another sector',function() {focus_on_command();});
         }
     });
-
+    
+    in_warp = false;
+    
     //Execute the computer turn
     computer_turn();
 
@@ -676,10 +685,14 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
         show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
         in_warp = true;
         show_warp_starfield();
+        var time = 500;
+        try {
+            time = 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
+        } catch(err) {} 
 
-        window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
-
-        return;
+        window.setTimeout(function() { 
+            move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, time);
+            return;
     } else {
         bootbox.alert('Sorry, Sir. Warp Engine are damaged! We can\'t move in another quadrant',function() {focus_on_command();});
     }
