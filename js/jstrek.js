@@ -122,7 +122,7 @@ function init() {
     lasers_status: 100,
     torpedo_status: 100,
     lifesupport_status: 100,
-    srs_status: 100,
+    srs_status: 20,
     computer_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
@@ -138,8 +138,12 @@ function init() {
   for(y=1; y<=8; y++) {
     jstrek.galaxy[y-1] = new Array(8);
     for(x=1; x<=8; x++) {
-      var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
-      enemies = enemies < 0 ? 0 : enemies;
+      //var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
+      //enemies = enemies < 0 ? 0 : enemies;
+      var enemies = getRandomInt(0,10);
+      if(enemies <=4) { enemies = 0; }
+      if(enemies >4 && enemies <=8) {enemies = 1;}
+      if(enemies >8) {enemies = 2;}
       jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(0, 2), getRandomInt(0, 7), getRandomInt(0, 2));
       jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies.length;
     }
@@ -280,6 +284,7 @@ function command_handler() {
                       }
                       jstrek.torpedos = 9;
                       refresh_systems();
+                      paint_short_range_chart();
                       computer_turn();
                     }
                     break;                    
@@ -539,18 +544,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
 
     move_in_sector(sector_y, sector_x);
 
-    if(jstrek.srs_status<=50) {
-        //Short Range Scanner doesn't work!
-        $('#short-range-chart tbody').html('');
-
-        for(i=1; i<=8; i++) {
-          $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">?</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">?</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">?</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">?</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">?</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">?</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">?</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">?</td></tr>');
-        }
-        
-        var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
-        $('#sr'+sector_y+'-'+sector_x).html('<img src="images/'+ship_image+'"/>');
-    }
-
     //Populating sector
     //Stars
     for(i=0; i<jstrek.actual_quadrant.stars; i++) {
@@ -560,11 +553,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = '*';
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -580,11 +568,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
           jstrek.actual_quadrant.enemies[i].y = y;
           jstrek.actual_quadrant.enemies[i].x = x;
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.enemies[i];
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -598,11 +581,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.planets[i];
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -616,11 +594,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = new Starbase(chance.syllable(), getRandomInt(1,3));
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -641,6 +614,13 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     });
     
     in_warp = false;
+    
+    if(jstrek.srs_status>50) {
+        paint_short_range_chart();
+    } else {
+        //Short Range Scanner doesn't work!
+        obscurate_short_range_chart();
+    }
     
     //Execute the computer turn
     computer_turn();
@@ -800,7 +780,7 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
         log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>','success');
         
         $('#sr'+sector.y+'-'+sector.x).html('.');
-        console.log(jstrek.actual_quadrant.enemies);
+        
         for(i=0; i< jstrek.actual_quadrant.enemies.length; i++) {
           if(jstrek.actual_quadrant.enemies[i]===sector.content) {
             jstrek.actual_quadrant.enemies.splice(i,1);
@@ -910,6 +890,43 @@ function cron_repair() {
     
 }
 
+function paint_short_range_chart() {
+    for(var y=1; y<=8; y++) {
+        for(var x=1; x<=8; x++) {
+            if(y!=jstrek.actual_sector.y || x!=jstrek.actual_sector.x) {
+                try {
+                    $('#sr'+y+'-'+x).html('.');
+                    if(jstrek.actual_quadrant.sectors[y][x].content=='*') {
+                        $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Planet) {
+                        $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Starbase) {
+                        $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Enemy) {
+                        var enemy = jstrek.actual_quadrant.sectors[y][x].content;
+                        $('#sr'+y+'-'+x).html('<img src="images/mongol'+enemy.type+'.png"/>');
+                    }
+                    
+                    
+                } catch(err) {}
+            }
+        }
+    }
+}
+
+function obscurate_short_range_chart() {
+    for(var y=1; y<=8; y++) {
+        for(var x=1; x<=8; x++) {
+            if(y!=jstrek.actual_sector.y || x!=jstrek.actual_sector.x) {
+                $('#sr'+y+'-'+x).html('?');
+            }
+        }
+    }
+}
+
 function check_ship_status() {
     
     if(!end_of_the_game) {
@@ -919,19 +936,16 @@ function check_ship_status() {
                 jstrek.energy-=2;
             }
         }
-
+        
         if(jstrek.srs_status<=50) {
             //Short Range Scanner doesn't work!
-            //$('#short-range-chart tbody').html('');
-
-            for(i=1; i<=8; i++) {
-              $('#short-range-chart tbody td').html('?');
-            }
-
-            var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
-            $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/'+ship_image+'"/>');
+            obscurate_short_range_chart(); 
+        }
+        else {
+            paint_short_range_chart();
         }
 
+        
         if(jstrek.energy <=0) {
             //Should not go under zero
             jstrek.energy = 0;
