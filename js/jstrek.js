@@ -8,6 +8,7 @@ var energy_meter_gauge = null;
 var shields_meter_gauge = null;
 var command_done = false;
 var in_warp = false;
+var end_of_the_game = false;
 
 var debug = false;
 if(debug) {
@@ -20,6 +21,9 @@ document.onkeydown = checkKey;
 
 
 function set_system_status(element_selector, value) {
+    
+  $(element_selector).html(value+'%');  
+    
   if(value < 30) {
       $(element_selector).removeClass('progress-bar-warning').removeClass('progress-bar-success').addClass('progress-bar-danger');
   } 
@@ -95,7 +99,7 @@ function refresh_systems() {
   energy_meter_gauge.refresh(jstrek.energy);
 }
 
-var system_array = ['energyconverter_status','shields_status', 'warp_status','impulse_status','lrs_status', 'laser_status', 'torpedo_status','lifesupport_status','srs_status'];
+var system_array = ['energyconverter_status','warp_status','impulse_status','lrs_status', 'lasers_status', 'torpedo_status','lifesupport_status','srs_status','computer_status'];
 
 function init() {
 
@@ -119,13 +123,14 @@ function init() {
     torpedo_status: 100,
     lifesupport_status: 100,
     srs_status: 100,
+    computer_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
     actual_sector: new Sector(0,0,null),
     shields_up: false,
     game_points: 0,
     torpedo_damage_power: 120
-  }
+  };
 
   set_global_status_green();
 
@@ -193,6 +198,18 @@ function init() {
   setInterval(function(){ 
       cron_repair();
   }, 60000);
+  
+  //Every 20 seconds, check ship status
+  setInterval(function(){ 
+        cron_computer_turn();
+  }, 20000);
+  
+  //Every ten seconds, check ship status
+  setInterval(function(){ 
+      check_ship_status();
+  }, 10000);
+  
+  
   
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
 
@@ -348,7 +365,7 @@ function command_handler() {
   });
 }
 
-function hide_planet() {
+function clear_view() {
   $('#canvas').css('background','url("images/texture/StarsMap_2500x1250.jpg")'); 
 }
 
@@ -423,12 +440,43 @@ function search_starbase_near() {
   return null;
 }
 
+function search_star_near() {
+  var y = jstrek.actual_sector.y - 1;
+  var x = jstrek.actual_sector.x - 1;
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x+1].content==='*') return true;
+  } catch(err) {}  
+  try {  
+    if(jstrek.actual_quadrant.sectors[y][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y][x+1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x+1].content==='*') return true;
+  } catch(err) {}
+    
+  return false;
+}
+
 function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     try {
       window.clearTimeout();
       window.cancelRequestAnimFrame(warp_animation);
       document.getElementById("canvas").width = document.getElementById("canvas").width;
-      hide_planet();
+      clear_view();
     } catch(err) {}
     
     if(!initial_turn) {
@@ -661,13 +709,15 @@ function move_in_sector(sector_y, sector_x) {
   }
   initial_turn = false;
 
-  hide_planet();
+  clear_view();
 
   //Update Main Viewer
+  if(search_star_near()) {
+    $('#canvas').css('background','url("images/texture/star.png")'); 
+  } 
   var planet_near = search_planet_near();
   if(planet_near != null) {
     show_planet(planet_near.image);
-    console.log(planet_near);
   } 
 
   return true;
@@ -723,7 +773,7 @@ function computer_turn() {
     }
   }
   
-    focus_on_command();
+  focus_on_command();
   command_done = false;
 }
 
@@ -817,9 +867,16 @@ function enemy_shoot(enemy) {
 
     var remaining_power = shoot_power;
     while(remaining_power>0) {
-      var random_system = getRandomInt(0,6);
+      var random_system = getRandomInt(0,8);
       var random_damage = getRandomInt(0,remaining_power+1);
+      while(jstrek[system_array[random_system]]<=0) {
+        jstrek[system_array[random_system]] = 0;
+        random_system = getRandomInt(0,8);
+      }
       jstrek[system_array[random_system]]-=random_damage;
+      if(jstrek[system_array[random_system]]<0) {
+          jstrek[system_array[random_system]] = 0;
+      }
       remaining_power-=random_damage;
     }
     refresh_systems();
@@ -828,6 +885,12 @@ function enemy_shoot(enemy) {
   //The shoot hits the ship
   $('body').animate({backgroundColor: "#aa0000"},1000);
   $('body').animate({backgroundColor: "#303030"},1000);
+
+}
+
+function cron_computer_turn() {
+    //Diabolic!
+    computer_turn();   
 }
 
 function cron_repair() {
@@ -841,33 +904,57 @@ function cron_repair() {
     if(jstrek.shields<100) {
         jstrek.shields++;
     }
+    
     refresh_systems();
     
-    //Diabolic!
-    computer_turn();
+    
 }
 
 function check_ship_status() {
-    if(jstrek.energy <=0) {
-        //Should not go under zero
-        jstrek.energy = 0;
-        //End of the game, sorry
-        bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
-            if(result) {
-                init();
-            } else {
-                $("#command").prop('disabled', true);
-            }
-        }); 
-    }
     
-    if(jstrek.lifesupport_status<=0) {
-        bootbox.confirm("Sorry, life support are without energy. Your crew is died. Would you try again?", function(result) {
-            if(result) {
-                init();
-            } else {
-                $("#command").prop('disabled', true);
+    if(!end_of_the_game) {
+    
+        if(jstrek.energyconverter_status==0) {
+            if(jstrek.energy>0) {
+                jstrek.energy-=2;
             }
-        }); 
+        }
+
+        if(jstrek.srs_status<=50) {
+            //Short Range Scanner doesn't work!
+            //$('#short-range-chart tbody').html('');
+
+            for(i=1; i<=8; i++) {
+              $('#short-range-chart tbody td').html('?');
+            }
+
+            var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
+            $('#sr'+jstrek.actual_sector.y+'-'+jstrek.actual_sector.x).html('<img src="images/'+ship_image+'"/>');
+        }
+
+        if(jstrek.energy <=0) {
+            //Should not go under zero
+            jstrek.energy = 0;
+            end_of_the_game = true;
+            //End of the game, sorry
+            bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
+                if(result) {
+                    location.reload();
+                } else {
+                    $("#command").prop('disabled', true);
+                }
+            }); 
+        }
+
+        if(jstrek.lifesupport_status<=0) {
+            end_of_the_game = true;
+            bootbox.confirm("Sorry, life support are without energy. Your crew is died. Would you try again?", function(result) {
+                if(result) {
+                    location.reload();
+                } else {
+                    $("#command").prop('disabled', true);
+                }
+            }); 
+        }
     }
 }
