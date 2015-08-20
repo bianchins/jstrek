@@ -8,6 +8,7 @@ var energy_meter_gauge = null;
 var shields_meter_gauge = null;
 var command_done = false;
 var in_warp = false;
+var end_of_the_game = false;
 
 var debug = false;
 if(debug) {
@@ -20,6 +21,9 @@ document.onkeydown = checkKey;
 
 
 function set_system_status(element_selector, value) {
+    
+  $(element_selector).html(value+'%');  
+    
   if(value < 30) {
       $(element_selector).removeClass('progress-bar-warning').removeClass('progress-bar-success').addClass('progress-bar-danger');
   } 
@@ -87,7 +91,7 @@ function refresh_systems() {
   set_system_status('#lifesupport-status', jstrek.lifesupport_status);
   set_system_status('#srs-status', jstrek.srs_status);
   set_system_status('#lrs-status', jstrek.lrs_status);
-  set_system_status('#computer-status', 100);
+  set_system_status('#computer-status', jstrek.computer_status);
   for(i=1; i<=jstrek.torpedos; i++) {
     $('#torp'+i).addClass('text-danger').removeClass('text-muted');
   }
@@ -95,7 +99,7 @@ function refresh_systems() {
   energy_meter_gauge.refresh(jstrek.energy);
 }
 
-var system_array = ['energyconverter_status','shields_status', 'warp_status','impulse_status','lrs_status', 'laser_status', 'torpedo_status','lifesupport_status','srs_status'];
+var system_array = ['energyconverter_status','warp_status','impulse_status','lrs_status', 'lasers_status', 'torpedo_status','lifesupport_status','srs_status','computer_status'];
 
 function init() {
 
@@ -119,13 +123,14 @@ function init() {
     torpedo_status: 100,
     lifesupport_status: 100,
     srs_status: 100,
+    computer_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
     actual_sector: new Sector(0,0,null),
     shields_up: false,
     game_points: 0,
     torpedo_damage_power: 120
-  }
+  };
 
   set_global_status_green();
 
@@ -133,8 +138,12 @@ function init() {
   for(y=1; y<=8; y++) {
     jstrek.galaxy[y-1] = new Array(8);
     for(x=1; x<=8; x++) {
-      var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
-      enemies = enemies < 0 ? 0 : enemies;
+      //var enemies = getRandomInt(0, 3) - getRandomInt(0, 2);
+      //enemies = enemies < 0 ? 0 : enemies;
+      var enemies = getRandomInt(0,10);
+      if(enemies <=4) { enemies = 0; }
+      if(enemies >4 && enemies <=8) {enemies = 1;}
+      if(enemies >8) {enemies = 2;}
       jstrek.galaxy[y-1][x-1] = new Quadrant(y,x,enemies, getRandomInt(0, 2), getRandomInt(0, 7), getRandomInt(0, 2));
       jstrek.enemies+=jstrek.galaxy[y-1][x-1].enemies.length;
     }
@@ -193,6 +202,18 @@ function init() {
   setInterval(function(){ 
       cron_repair();
   }, 60000);
+  
+  //Every 20 seconds, check ship status
+  setInterval(function(){ 
+        cron_computer_turn();
+  }, 20000);
+  
+  //Every ten seconds, check ship status
+  setInterval(function(){ 
+      check_ship_status();
+  }, 10000);
+  
+  
   
   move_in_quadrant(getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8),getRandomInt(1,8));     
 
@@ -263,6 +284,7 @@ function command_handler() {
                       }
                       jstrek.torpedos = 9;
                       refresh_systems();
+                      paint_short_range_chart();
                       computer_turn();
                     }
                     break;                    
@@ -348,7 +370,7 @@ function command_handler() {
   });
 }
 
-function hide_planet() {
+function clear_view() {
   $('#canvas').css('background','url("images/texture/StarsMap_2500x1250.jpg")'); 
 }
 
@@ -423,20 +445,58 @@ function search_starbase_near() {
   return null;
 }
 
+function search_star_near() {
+  var y = jstrek.actual_sector.y - 1;
+  var x = jstrek.actual_sector.x - 1;
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y-1][x+1].content==='*') return true;
+  } catch(err) {}  
+  try {  
+    if(jstrek.actual_quadrant.sectors[y][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y][x+1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x-1].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x].content==='*') return true;
+  } catch(err) {}
+  try {
+    if(jstrek.actual_quadrant.sectors[y+1][x+1].content==='*') return true;
+  } catch(err) {}
+    
+  return false;
+}
+
 function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
     try {
       window.clearTimeout();
       window.cancelRequestAnimFrame(warp_animation);
       document.getElementById("canvas").width = document.getElementById("canvas").width;
-      hide_planet();
+      clear_view();
     } catch(err) {}
-    in_warp = false;
+    
     if(!initial_turn) {
-      //Change stardate
-      add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+        try {
+            //Change stardate
+            add_stardate(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
+        } catch(err) {
+            add_stardate(0.5);
+        }
 
       //Calculate energy waste
-      var energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
+      var energy_wasted = 3;
+      try {
+          energy_wasted = Math.floor(lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1]) * jstrek.warp / 2);
+      } catch(err) {}
       
       jstrek.energy-=energy_wasted;
 
@@ -484,18 +544,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
 
     move_in_sector(sector_y, sector_x);
 
-    if(jstrek.srs_status<=50) {
-        //Short Range Scanner doesn't work!
-        $('#short-range-chart tbody').html('');
-
-        for(i=1; i<=8; i++) {
-          $('#short-range-chart tbody').append('<tr><td>'+i+'</td><td id="sr'+i+'-1" class="src_cell" data-y="'+i+'" data-x="1">?</td><td id="sr'+i+'-2" class="src_cell" data-y="'+i+'" data-x="2">?</td><td id="sr'+i+'-3" class="src_cell" data-y="'+i+'" data-x="3">?</td><td id="sr'+i+'-4" class="src_cell" data-y="'+i+'" data-x="4">?</td><td id="sr'+i+'-5" class="src_cell" data-y="'+i+'" data-x="5">?</td><td id="sr'+i+'-6" class="src_cell" data-y="'+i+'" data-x="6">?</td><td id="sr'+i+'-7" class="src_cell" data-y="'+i+'" data-x="7">?</td><td id="sr'+i+'-8" class="src_cell" data-y="'+i+'" data-x="8">?</td></tr>');
-        }
-        
-        var ship_image = (jstrek.shields_up) ? 'lexington_su.png' : 'lexington.png';
-        $('#sr'+sector_y+'-'+sector_x).html('<img src="images/'+ship_image+'"/>');
-    }
-
     //Populating sector
     //Stars
     for(i=0; i<jstrek.actual_quadrant.stars; i++) {
@@ -505,11 +553,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = '*';
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -525,11 +568,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
           jstrek.actual_quadrant.enemies[i].y = y;
           jstrek.actual_quadrant.enemies[i].x = x;
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.enemies[i];
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<img src="images/mongol'+jstrek.actual_quadrant.enemies[i].type+'.png"/>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -543,11 +581,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = jstrek.actual_quadrant.planets[i];
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -561,11 +594,6 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
         var y = getRandomInt(1,8);
         if(jstrek.actual_quadrant.sectors[y-1][x-1].content==null) {
           jstrek.actual_quadrant.sectors[y-1][x-1].content = new Starbase(chance.syllable(), getRandomInt(1,3));
-          if(jstrek.srs_status>50) {
-            $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
-          } else {
-            $('#sr'+y+'-'+x).html('?');  
-          }
           positioned = true;
         }
       }
@@ -584,7 +612,16 @@ function move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) {
             bootbox.alert('Sorry, Sir. Impulse Engine are damaged! We can\'t move in another sector',function() {focus_on_command();});
         }
     });
-
+    
+    in_warp = false;
+    
+    if(jstrek.srs_status>50) {
+        paint_short_range_chart();
+    } else {
+        //Short Range Scanner doesn't work!
+        obscurate_short_range_chart();
+    }
+    
     //Execute the computer turn
     computer_turn();
 
@@ -652,13 +689,15 @@ function move_in_sector(sector_y, sector_x) {
   }
   initial_turn = false;
 
-  hide_planet();
+  clear_view();
 
   //Update Main Viewer
+  if(search_star_near()) {
+    $('#canvas').css('background','url("images/texture/star.png")'); 
+  } 
   var planet_near = search_planet_near();
   if(planet_near != null) {
     show_planet(planet_near.image);
-    console.log(planet_near);
   } 
 
   return true;
@@ -676,10 +715,14 @@ function command_move(quadrant_y, quadrant_x, sector_y, sector_x) {
         show_quadrant(jstrek.actual_quadrant.y, jstrek.actual_quadrant.x, false);
         in_warp = true;
         show_warp_starfield();
+        var time = 500;
+        try {
+            time = 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp;
+        } catch(err) {} 
 
-        window.setTimeout(function() { move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, 500+500*lineDistance(jstrek.actual_quadrant, jstrek.galaxy[quadrant_y-1][quadrant_x-1])/jstrek.warp);
-
-        return;
+        window.setTimeout(function() { 
+            move_in_quadrant(quadrant_y, quadrant_x, sector_y, sector_x) }, time);
+            return;
     } else {
         bootbox.alert('Sorry, Sir. Warp Engine are damaged! We can\'t move in another quadrant',function() {focus_on_command();});
     }
@@ -710,7 +753,7 @@ function computer_turn() {
     }
   }
   
-    focus_on_command();
+  focus_on_command();
   command_done = false;
 }
 
@@ -737,7 +780,7 @@ function torpedo_shoot(sector, after_computer_turn_flag) {
         log_communication('<b>Enemy in '+sector.y+','+sector.x+' destroyed!</b>','success');
         
         $('#sr'+sector.y+'-'+sector.x).html('.');
-        console.log(jstrek.actual_quadrant.enemies);
+        
         for(i=0; i< jstrek.actual_quadrant.enemies.length; i++) {
           if(jstrek.actual_quadrant.enemies[i]===sector.content) {
             jstrek.actual_quadrant.enemies.splice(i,1);
@@ -804,9 +847,18 @@ function enemy_shoot(enemy) {
 
     var remaining_power = shoot_power;
     while(remaining_power>0) {
-      var random_system = getRandomInt(0,6);
-      var random_damage = getRandomInt(0,remaining_power+1);
+      var random_system = chance.integer({min: 0, max: 8});
+
+      var random_damage = remaining_power<=5 ? remaining_power : getRandomInt(0,remaining_power/2+1);
+      
+      while(jstrek[system_array[random_system]]<=0) {
+        jstrek[system_array[random_system]] = 0;
+        random_system = chance.integer({min: 0, max: 8});
+      }
       jstrek[system_array[random_system]]-=random_damage;
+      if(jstrek[system_array[random_system]]<0) {
+          jstrek[system_array[random_system]] = 0;
+      }
       remaining_power-=random_damage;
     }
     refresh_systems();
@@ -815,6 +867,12 @@ function enemy_shoot(enemy) {
   //The shoot hits the ship
   $('body').animate({backgroundColor: "#aa0000"},1000);
   $('body').animate({backgroundColor: "#303030"},1000);
+
+}
+
+function cron_computer_turn() {
+    //Diabolic!
+    computer_turn();   
 }
 
 function cron_repair() {
@@ -828,33 +886,91 @@ function cron_repair() {
     if(jstrek.shields<100) {
         jstrek.shields++;
     }
+    
     refresh_systems();
     
-    //Diabolic!
-    computer_turn();
+    
+}
+
+function paint_short_range_chart() {
+    for(var y=1; y<=8; y++) {
+        for(var x=1; x<=8; x++) {
+            if(y!=jstrek.actual_sector.y || x!=jstrek.actual_sector.x) {
+                try {
+                    $('#sr'+y+'-'+x).html('.');
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content=='*') {
+                        $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Planet) {
+                        $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Starbase) {
+                        $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
+                    }
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Enemy) {
+                        var enemy = jstrek.actual_quadrant.sectors[y-1][x-1].content;
+                        $('#sr'+y+'-'+x).html('<img src="images/mongol'+enemy.type+'.png"/>');
+                    }
+                    
+                    
+                } catch(err) {}
+            }
+        }
+    }
+}
+
+function obscurate_short_range_chart() {
+    for(var y=1; y<=8; y++) {
+        for(var x=1; x<=8; x++) {
+            if(y!=jstrek.actual_sector.y || x!=jstrek.actual_sector.x) {
+                $('#sr'+y+'-'+x).html('?');
+            }
+        }
+    }
 }
 
 function check_ship_status() {
-    if(jstrek.energy <=0) {
-        //Should not go under zero
-        jstrek.energy = 0;
-        //End of the game, sorry
-        bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
-            if(result) {
-                init();
-            } else {
-                $("#command").prop('disabled', true);
-            }
-        }); 
-    }
     
-    if(jstrek.lifesupport_status<=0) {
-        bootbox.confirm("Sorry, life support are without energy. Your crew is died. Would you try again?", function(result) {
-            if(result) {
-                init();
-            } else {
-                $("#command").prop('disabled', true);
+    if(!end_of_the_game) {
+    
+        if(jstrek.energyconverter_status==0) {
+            if(jstrek.energy>0) {
+                jstrek.energy-=2;
             }
-        }); 
+        }
+        
+        if(jstrek.srs_status<=50) {
+            //Short Range Scanner doesn't work!
+            obscurate_short_range_chart(); 
+        }
+        else {
+            paint_short_range_chart();
+        }
+
+        
+        if(jstrek.energy <=0) {
+            //Should not go under zero
+            jstrek.energy = 0;
+            end_of_the_game = true;
+            //End of the game, sorry
+            bootbox.confirm("Sorry, all systems are without energy. Your crew is died. Would you try again?", function(result) {
+                if(result) {
+                    location.reload();
+                } else {
+                    $("#command").prop('disabled', true);
+                }
+            }); 
+        }
+
+        if(jstrek.lifesupport_status<=0) {
+            end_of_the_game = true;
+            bootbox.confirm("Sorry, life support are without energy. Your crew is died. Would you try again?", function(result) {
+                if(result) {
+                    location.reload();
+                } else {
+                    $("#command").prop('disabled', true);
+                }
+            }); 
+        }
     }
 }
