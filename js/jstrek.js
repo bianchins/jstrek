@@ -91,7 +91,7 @@ function refresh_systems() {
   set_system_status('#lifesupport-status', jstrek.lifesupport_status);
   set_system_status('#srs-status', jstrek.srs_status);
   set_system_status('#lrs-status', jstrek.lrs_status);
-  set_system_status('#computer-status', 100);
+  set_system_status('#computer-status', jstrek.computer_status);
   for(i=1; i<=jstrek.torpedos; i++) {
     $('#torp'+i).addClass('text-danger').removeClass('text-muted');
   }
@@ -122,7 +122,7 @@ function init() {
     lasers_status: 100,
     torpedo_status: 100,
     lifesupport_status: 100,
-    srs_status: 20,
+    srs_status: 100,
     computer_status: 100,
     stardate: 3500.0,
     actual_quadrant: new Quadrant(0,0,0,0,0,0),
@@ -847,11 +847,13 @@ function enemy_shoot(enemy) {
 
     var remaining_power = shoot_power;
     while(remaining_power>0) {
-      var random_system = getRandomInt(0,8);
-      var random_damage = getRandomInt(0,remaining_power+1);
+      var random_system = chance.integer({min: 0, max: 8});
+
+      var random_damage = remaining_power<=5 ? remaining_power : getRandomInt(0,remaining_power/2+1);
+      
       while(jstrek[system_array[random_system]]<=0) {
         jstrek[system_array[random_system]] = 0;
-        random_system = getRandomInt(0,8);
+        random_system = chance.integer({min: 0, max: 8});
       }
       jstrek[system_array[random_system]]-=random_damage;
       if(jstrek[system_array[random_system]]<0) {
@@ -896,17 +898,17 @@ function paint_short_range_chart() {
             if(y!=jstrek.actual_sector.y || x!=jstrek.actual_sector.x) {
                 try {
                     $('#sr'+y+'-'+x).html('.');
-                    if(jstrek.actual_quadrant.sectors[y][x].content=='*') {
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content=='*') {
                         $('#sr'+y+'-'+x).html('<span class="text-warning"><span class="fa fa-asterisk"></span></span>');
                     }
-                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Planet) {
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Planet) {
                         $('#sr'+y+'-'+x).html('<span class="text-info"><span class="fa fa-globe"></span></span>');
                     }
-                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Starbase) {
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Starbase) {
                         $('#sr'+y+'-'+x).html('<img src="images/starbase.png"/>');
                     }
-                    if(jstrek.actual_quadrant.sectors[y][x].content instanceof Enemy) {
-                        var enemy = jstrek.actual_quadrant.sectors[y][x].content;
+                    if(jstrek.actual_quadrant.sectors[y-1][x-1].content instanceof Enemy) {
+                        var enemy = jstrek.actual_quadrant.sectors[y-1][x-1].content;
                         $('#sr'+y+'-'+x).html('<img src="images/mongol'+enemy.type+'.png"/>');
                     }
                     
